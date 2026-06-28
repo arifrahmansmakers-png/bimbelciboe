@@ -1,0 +1,155 @@
+[
+  {
+    "paket": 1,
+    "tema": "Pendidikan dan Literasi Digital",
+    "kumpulan_teks": [
+      {
+        "teks": "Portal Computer Based Test (CBT) di sekolah memicu efisiensi administrasi. Guru berperan sebagai fasilitator utama.",
+        "soal": [
+          {"id": 1, "tipe": "PG", "pertanyaan": "Apa peran guru menurut teks?", "opsi": ["A. Administrator", "B. Fasilitator", "C. Pengembang", "D. Pengawas"], "kunci": "B", "kompetensi": "Tekstual"},
+          {"id": 2, "tipe": "PG", "pertanyaan": "Kata serapan asing dalam teks adalah...", "opsi": ["A. Guru", "B. Portal", "C. Sekolah", "D. Utama"], "kunci": "B", "kompetensi": "Tekstual"},
+          {"id": 3, "tipe": "BS", "pertanyaan": "CBT otomatis menghilangkan peran guru.", "opsi": ["BENAR", "SALAH"], "kunci": "SALAH", "kompetensi": "Evaluasi"},
+          {"id": 4, "tipe": "MCMA", "pertanyaan": "Tujuan utama CBT:", "opsi": ["A. Efisiensi", "B. Modernisasi", "C. Mempersulit guru", "D. Mengurangi kertas"], "kunci": ["A", "B", "D"], "kompetensi": "Inferensial"}
+        ]
+      },
+      {
+        "teks": "Kurikulum Merdeka berfokus pada konsep. Siswa lebih kritis dalam memecahkan masalah daripada sekadar menghafal.",
+        "soal": [
+          {"id": 5, "tipe": "PG", "pertanyaan": "Ide pokok teks tersebut adalah...", "opsi": ["A. Cara menghafal", "B. Fokus konsep kurikulum", "C. Masalah siswa", "D. Jumlah ujian"], "kunci": "B", "kompetensi": "Inferensial"},
+          {"id": 6, "tipe": "PG", "pertanyaan": "Apa arti 'kritis' dalam konteks teks?", "opsi": ["A. Marah", "B. Berpikir tajam", "C. Berbahaya", "D. Lambat"], "kunci": "B", "kompetensi": "Tekstual"},
+          {"id": 7, "tipe": "BS", "pertanyaan": "Kurikulum ini mengutamakan hafalan.", "opsi": ["BENAR", "SALAH"], "kunci": "SALAH", "kompetensi": "Evaluasi"},
+          {"id": 8, "tipe": "MCMA", "pertanyaan": "Karakteristik siswa Kurikulum Merdeka:", "opsi": ["A. Kritis", "B. Aplikatif", "C. Pasif", "D. Penghafal"], "kunci": ["A", "B"], "kompetensi": "Inferensial"}
+        ]
+      },
+      {
+        "teks": "Kesenjangan akses internet di wilayah 3T menghambat digitalisasi pendidikan yang inklusif bagi semua siswa.",
+        "soal": [
+          {"id": 9, "tipe": "PG", "pertanyaan": "Fenomena yang dibahas adalah...", "opsi": ["A. Kehebatan teknologi", "B. Ketimpangan akses", "C. Harga internet", "D. Libur sekolah"], "kunci": "B", "kompetensi": "Tekstual"},
+          {"id": 10, "tipe": "MCMA", "pertanyaan": "Dampak kesenjangan akses:", "opsi": ["A. Akses info sulit", "B. Kualitas beda", "C. Kota jadi maju", "D. Pendidikan tidak merata"], "kunci": ["A", "B", "D"], "kompetensi": "Inferensial"},
+          {"id": 11, "tipe": "BS", "pertanyaan": "Digitalisasi sudah merata di seluruh pelosok.", "opsi": ["BENAR", "SALAH"], "kunci": "SALAH", "kompetensi": "Evaluasi"},
+          {"id": 12, "tipe": "PG", "pertanyaan": "Apa prediksi masa depan jika tidak diatasi?", "opsi": ["A. Kesenjangan makin lebar", "B. Akses merata", "C. Siswa pintar", "D. Teknologi murah"], "kunci": "A", "kompetensi": "Inferensial"}
+        ]
+      },
+      {
+        "teks": "Puisi: Menembus sekat layar, jemari menari di atas tuts, mencari cahaya di ufuk digital.",
+        "soal": [
+          {"id": 13, "tipe": "PG", "pertanyaan": "Apa respons emosional dari puisi tersebut?", "opsi": ["A. Takut", "B. Semangat/optimis", "C. Bosan", "D. Marah"], "kunci": "B", "kompetensi": "Apresiasi"},
+          {"id": 14, "tipe": "PG", "pertanyaan": "Makna 'cahaya' dalam puisi adalah...", "opsi": ["A. Lampu", "B. Ilmu/harapan", "C. Matahari", "D. Layar HP"], "kunci": "B", "kompetensi": "Apresiasi"},
+          {"id": 15, "tipe": "BS", "pertanyaan": "Puisi ini menggambarkan kegelapan malam.", "opsi": ["BENAR", "SALAH"], "kunci": "SALAH", "kompetensi": "Apresiasi"},
+          {"id": 16, "tipe": "MCMA", "pertanyaan": "Gambaran suasana:", "opsi": ["A. Inspiratif", "B. Penuh perjuangan", "C. Statis", "D. Dinamis"], "kunci": ["A", "B", "D"], "kompetensi": "Apresiasi"}
+        ]
+      },
+      {
+        "teks": "Bagan Laporan: (1) Pendataan, (2) Validasi, (3) Laporan, (4) Evaluasi. Bagian 4 adalah penentu keberhasilan.",
+        "soal": [
+          {"id": 17, "tipe": "PG", "pertanyaan": "Langkah penentu keberhasilan adalah...", "opsi": ["A. Pendataan", "B. Validasi", "C. Laporan", "D. Evaluasi"], "kunci": "D", "kompetensi": "Tekstual"},
+          {"id": 18, "tipe": "BS", "pertanyaan": "Langkah evaluasi dilakukan sebelum pendataan.", "opsi": ["BENAR", "SALAH"], "kunci": "SALAH", "kompetensi": "Tekstual"},
+          {"id": 19, "tipe": "MCMA", "pertanyaan": "Urutan sistem laporan:", "opsi": ["A. Pendataan", "B. Validasi", "C. Evaluasi", "D. Distribusi"], "kunci": ["A", "B", "C"], "kompetensi": "Tekstual"},
+          {"id": 20, "tipe": "PG", "pertanyaan": "Teks tersebut berbentuk...", "opsi": ["A. Cerita pendek", "B. Bagan kerangka", "C. Puisi", "D. Drama"], "kunci": "B", "kompetensi": "Tekstual"}
+        ]
+      }
+    ]
+  },
+  {
+    "paket": 2,
+    "tema": "Lingkungan dan Kualitas Hidup",
+    "kumpulan_teks": [
+      {
+        "teks": "Sampah plastik di TPA sudah overload. Ekonomi sirkular menjadi solusi untuk mengubah sampah jadi nilai ekonomi.",
+        "soal": [
+          {"id": 1, "tipe": "PG", "pertanyaan": "Apa arti 'overload'?", "opsi": ["A. Kapasitas penuh", "B. Kapasitas sisa", "C. Terbakar", "D. Hilang"], "kunci": "A", "kompetensi": "Tekstual"},
+          {"id": 2, "tipe": "PG", "pertanyaan": "Solusi utama teks adalah...", "opsi": ["A. Membakar sampah", "B. Ekonomi sirkular", "C. Mengirim sampah", "D. Mengabaikan"], "kunci": "B", "kompetensi": "Inferensial"},
+          {"id": 3, "tipe": "BS", "pertanyaan": "TPA masih sangat luas dan kosong.", "opsi": ["BENAR", "SALAH"], "kunci": "SALAH", "kompetensi": "Evaluasi"},
+          {"id": 4, "tipe": "MCMA", "pertanyaan": "Prinsip ekonomi sirkular:", "opsi": ["A. Mengolah kembali", "B. Mengurangi limbah", "C. Menimbun", "D. Nilai ekonomi"], "kunci": ["A", "B", "D"], "kompetensi": "Inferensial"}
+        ]
+      },
+      {
+        "teks": "Pencemaran mikroplastik di sungai mengancam kesehatan karena biota air ikut terkontaminasi.",
+        "soal": [
+          {"id": 5, "tipe": "PG", "pertanyaan": "Hubungan antar kalimat adalah...", "opsi": ["A. Pertentangan", "B. Sebab-akibat", "C. Penjelasan", "D. Urutan"], "kunci": "B", "kompetensi": "Inferensial"},
+          {"id": 6, "tipe": "PG", "pertanyaan": "Apa risiko utama mikroplastik?", "opsi": ["A. Air jernih", "B. Terkontaminasi/beracun", "C. Ikan banyak", "D. Sungai dalam"], "kunci": "B", "kompetensi": "Tekstual"},
+          {"id": 7, "tipe": "BS", "pertanyaan": "Sungai yang tercemar tidak bahaya bagi manusia.", "opsi": ["BENAR", "SALAH"], "kunci": "SALAH", "kompetensi": "Evaluasi"},
+          {"id": 8, "tipe": "MCMA", "pertanyaan": "Dampak polusi plastik:", "opsi": ["A. Ekosistem rusak", "B. Kesehatan terancam", "C. Ikan bertambah", "D. Air tidak layak konsumsi"], "kunci": ["A", "B", "D"], "kompetensi": "Inferensial"}
+        ]
+      },
+      {
+        "teks": "Larangan kantong plastik di ritel modern efektif mengurangi timbulan sampah plastik hingga 20%.",
+        "soal": [
+          {"id": 9, "tipe": "PG", "pertanyaan": "Apakah informasi tersebut akurat dalam konteks perilaku belanja?", "opsi": ["A. Sangat mungkin", "B. Tidak mungkin", "C. Menambah sampah", "D. Tidak relevan"], "kunci": "A", "kompetensi": "Evaluasi"},
+          {"id": 10, "tipe": "BS", "pertanyaan": "Larangan ritel menambah sampah.", "opsi": ["BENAR", "SALAH"], "kunci": "SALAH", "kompetensi": "Evaluasi"},
+          {"id": 11, "tipe": "MCMA", "pertanyaan": "Efek kebijakan ritel:", "opsi": ["A. Kurangi sampah", "B. Hemat biaya", "C. Kebiasaan bawa tas sendiri", "D. Penutupan toko"], "kunci": ["A", "C"], "kompetensi": "Inferensial"},
+          {"id": 12, "tipe": "PG", "pertanyaan": "Apa relevansi kebijakan ini bagi kita?", "opsi": ["A. Mengubah gaya hidup", "B. Menambah biaya", "C. Memaksa belanja", "D. Mengabaikan"], "kunci": "A", "kompetensi": "Evaluasi"}
+        ]
+      },
+      {
+        "teks": "Prosa: Sungai yang dulu bening, kini berubah warna oleh limbah tak bertanggung jawab.",
+        "soal": [
+          {"id": 13, "tipe": "PG", "pertanyaan": "Respon emosional terhadap prosa:", "opsi": ["A. Sedih", "B. Gembira", "C. Kagum", "D. Bosan"], "kunci": "A", "kompetensi": "Apresiasi"},
+          {"id": 14, "tipe": "PG", "pertanyaan": "Apa nilai moral dari prosa?", "opsi": ["A. Buanglah limbah", "B. Jaga kebersihan sungai", "C. Sungai tidak penting", "D. Warna sungai indah"], "kunci": "B", "kompetensi": "Apresiasi"},
+          {"id": 15, "tipe": "BS", "pertanyaan": "Sungai digambarkan dalam keadaan bersih.", "opsi": ["BENAR", "SALAH"], "kunci": "SALAH", "kompetensi": "Apresiasi"},
+          {"id": 16, "tipe": "MCMA", "pertanyaan": "Sifat limbah menurut teks:", "opsi": ["A. Berwarna", "B. Tidak bertanggung jawab", "C. Berbahaya", "D. Bening"], "kunci": ["A", "B", "C"], "kompetensi": "Apresiasi"}
+        ]
+      },
+      {
+        "teks": "Bagan Pengolahan: (1) Pemilahan, (2) Pencacahan, (3) Pembuatan kerajinan, (4) Pemasaran.",
+        "soal": [
+          {"id": 17, "tipe": "PG", "pertanyaan": "Apa langkah ke-3?", "opsi": ["A. Pemilahan", "B. Pencacahan", "C. Kerajinan", "D. Pemasaran"], "kunci": "C", "kompetensi": "Tekstual"},
+          {"id": 18, "tipe": "BS", "pertanyaan": "Pemasaran adalah langkah pertama.", "opsi": ["BENAR", "SALAH"], "kunci": "SALAH", "kompetensi": "Tekstual"},
+          {"id": 19, "tipe": "MCMA", "pertanyaan": "Alur proses:", "opsi": ["A. Pemilahan", "B. Pencacahan", "C. Kerajinan", "D. Penumpukan"], "kunci": ["A", "B", "C"], "kompetensi": "Tekstual"},
+          {"id": 20, "tipe": "PG", "pertanyaan": "Bagan ini menggambarkan...", "opsi": ["A. Kerusakan lingkungan", "B. Proses pengolahan", "C. Kebijakan pemerintah", "D. Drama"], "kunci": "B", "kompetensi": "Tekstual"}
+        ]
+      }
+    ]
+  },
+  {
+    "paket": 3,
+    "tema": "Remaja dan Tantangan Global",
+    "kumpulan_teks": [
+      {
+        "teks": "Fear of Missing Out (FOMO) adalah fenomena remaja merasa cemas jika tidak mengikuti tren di media sosial.",
+        "soal": [
+          {"id": 1, "tipe": "PG", "pertanyaan": "Apa itu FOMO?", "opsi": ["A. Tren sosial", "B. Kecemasan ketinggalan tren", "C. Kebahagiaan", "D. Olahraga"], "kunci": "B", "kompetensi": "Tekstual"},
+          {"id": 2, "tipe": "BS", "pertanyaan": "FOMO membuat remaja merasa tenang.", "opsi": ["BENAR", "SALAH"], "kunci": "SALAH", "kompetensi": "Evaluasi"},
+          {"id": 3, "tipe": "MCMA", "pertanyaan": "Dampak medsos bagi remaja:", "opsi": ["A. Cemas", "B. FOMO", "C. Ketenangan", "D. Tekanan sosial"], "kunci": ["A", "B", "D"], "kompetensi": "Inferensial"},
+          {"id": 4, "tipe": "PG", "pertanyaan": "Kata serapan asing dalam teks:", "opsi": ["A. Remaja", "B. Media sosial", "C. Tren", "D. Fenomena"], "kunci": "B", "kompetensi": "Tekstual"}
+        ]
+      },
+      {
+        "teks": "Perubahan iklim ekstrem mengakibatkan gagal panen. Petani kesulitan memprediksi masa tanam yang tepat.",
+        "soal": [
+          {"id": 5, "tipe": "PG", "pertanyaan": "Konflik yang muncul adalah...", "opsi": ["A. Petani malas", "B. Gagal panen", "C. Cuaca bagus", "D. Harga mahal"], "kunci": "B", "kompetensi": "Inferensial"},
+          {"id": 6, "tipe": "PG", "pertanyaan": "Hubungan dalam teks adalah...", "opsi": ["A. Sebab-akibat", "B. Pertentangan", "C. Perbandingan", "D. Penjelasan"], "kunci": "A", "kompetensi": "Inferensial"},
+          {"id": 7, "tipe": "BS", "pertanyaan": "Cuaca ekstrem tidak mengganggu petani.", "opsi": ["BENAR", "SALAH"], "kunci": "SALAH", "kompetensi": "Evaluasi"},
+          {"id": 8, "tipe": "MCMA", "pertanyaan": "Dampak iklim:", "opsi": ["A. Gagal panen", "B. Masa tanam kacau", "C. Panen melimpah", "D. Petani bingung"], "kunci": ["A", "B", "D"], "kompetensi": "Inferensial"}
+        ]
+      },
+      {
+        "teks": "Penggunaan AI di sekolah harus dibatasi agar tidak mematikan kreativitas asli siswa.",
+        "soal": [
+          {"id": 9, "tipe": "PG", "pertanyaan": "Apakah saran ini tepat?", "opsi": ["A. Sangat relevan", "B. Tidak relevan", "C. Salah", "D. Tidak perlu"], "kunci": "A", "kompetensi": "Evaluasi"},
+          {"id": 10, "tipe": "BS", "pertanyaan": "AI mematikan kreativitas adalah opini.", "opsi": ["BENAR", "SALAH"], "kunci": "BENAR", "kompetensi": "Evaluasi"},
+          {"id": 11, "tipe": "MCMA", "pertanyaan": "Risiko AI:", "opsi": ["A. Malas berpikir", "B. Kreativitas hilang", "C. Cerdas seketika", "D. Kecurangan"], "kunci": ["A", "B", "D"], "kompetensi": "Evaluasi"},
+          {"id": 12, "tipe": "PG", "pertanyaan": "Relevansi teks dengan tugas sekolah:", "opsi": ["A. Penting diperhatikan", "B. Diabaikan saja", "C. AI wajib dipakai", "D. Sekolah tidak butuh"], "kunci": "A", "kompetensi": "Evaluasi"}
+        ]
+      },
+      {
+        "teks": "Drama: Budi duduk sendirian saat teman-temannya sibuk berswafoto, ia merasa terisolasi.",
+        "soal": [
+          {"id": 13, "tipe": "PG", "pertanyaan": "Respon emosional dari drama:", "opsi": ["A. Kesepian", "B. Gembira", "C. Bersemangat", "D. Marah"], "kunci": "A", "kompetensi": "Apresiasi"},
+          {"id": 14, "tipe": "PG", "pertanyaan": "Di mana latar drama?", "opsi": ["A. Rumah", "B. Sudut kelas", "C. Taman", "D. Toko"], "kunci": "B", "kompetensi": "Apresiasi"},
+          {"id": 15, "tipe": "BS", "pertanyaan": "Budi bahagia di drama ini.", "opsi": ["BENAR", "SALAH"], "kunci": "SALAH", "kompetensi": "Apresiasi"},
+          {"id": 16, "tipe": "MCMA", "pertanyaan": "Watak Budi:", "opsi": ["A. Merasa sendiri", "B. Terisolasi", "C. Ceria", "D. Sibuk"], "kunci": ["A", "B"], "kompetensi": "Apresiasi"}
+        ]
+      },
+      {
+        "teks": "Bagan Mitigasi: (1) Menanam pohon, (2) Mengurangi emisi, (3) Energi terbarukan, (4) Edukasi publik.",
+        "soal": [
+          {"id": 17, "tipe": "PG", "pertanyaan": "Langkah pertama mitigasi:", "opsi": ["A. Menanam pohon", "B. Emisi", "C. Edukasi", "D. Energi"], "kunci": "A", "kompetensi": "Tekstual"},
+          {"id": 18, "tipe": "BS", "pertanyaan": "Edukasi publik langkah pertama.", "opsi": ["BENAR", "SALAH"], "kunci": "SALAH", "kompetensi": "Tekstual"},
+          {"id": 19, "tipe": "MCMA", "pertanyaan": "Unsur mitigasi:", "opsi": ["A. Menanam", "B. Emisi", "C. Edukasi", "D. Pembakaran"], "kunci": ["A", "B", "C"], "kompetensi": "Tekstual"},
+          {"id": 20, "tipe": "PG", "pertanyaan": "Tujuan bagan:", "opsi": ["A. Menjelaskan mitigasi", "B. Membuat cerita", "C. Menghitung uang", "D. Drama"], "kunci": "A", "kompetensi": "Tekstual"}
+        ]
+      }
+    ]
+  }
+]
