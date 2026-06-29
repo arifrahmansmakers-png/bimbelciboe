@@ -63,7 +63,7 @@ export default function DaftarPage() {
 
               {/* Tombol berubah menjadi Link untuk navigasi */}
               <Link 
-                href={`/checkout?paket=${plan.duration}&harga=${plan.price}`}
+                href={`daftar/checkout?paket=${plan.duration}&harga=${plan.price}`}
                 className={`block text-center w-full py-4 rounded-xl font-bold text-white transition-colors ${
                   plan.isPopular ? 'bg-orange-600 hover:bg-orange-700' : 'bg-blue-600 hover:bg-blue-700'
                 }`}

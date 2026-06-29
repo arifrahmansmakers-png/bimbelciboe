@@ -1,11 +1,12 @@
 'use client';
 import 'katex/dist/katex.min.css';
+// @ts-ignore
 import { InlineMath, BlockMath } from 'react-katex';
 
 export default function MathText({ text }: { text?: string }) {
   // Perlindungan agar tidak error jika text undefined
   const safeText = text || "";
-  
+
   // Jika teks tidak mengandung simbol '$', render sebagai teks biasa
   if (!safeText.includes('$')) {
     return <span>{safeText}</span>;

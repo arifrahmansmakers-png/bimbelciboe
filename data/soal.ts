@@ -1,8 +1,6 @@
-import { Soal } from './types'; // Pastikan type TipeSoal & Soal ada di sini
-
 export interface Soal {
   id: string;
-  tipe: 'PG' | 'MCM' | 'BS' | 'Isian';
+  tipe: 'PG' | 'MCMA' | 'BS' | 'Isian'| 'TabelBS';
   pertanyaan: string;
   opsi?: string[];
   kunci: string | string[];
@@ -16,19 +14,22 @@ export const bobotSoal = {
 };
 
 // Konfigurasi durasi ujian untuk semua mata pelajaran (dalam detik)
-export const durasiUjian: { [mapel: string]: number } = {
-  // Jenjang SD
-  "SD - Matematika": 3600,
-  "SD - Bahasa Indonesia": 3600,
+export const durasiUjian: Record<string, Record<string, number>> = {
+  // Jenjang SD/MI
+  "SD/MI": {
+  "Matematika": 3600,
+  "Bahasa Indonesia": 3600,},
   
   // Jenjang SMP
-  "SMP - Matematika": 3600,
-  "SMP - Bahasa Indonesia": 3600,
+ "SMP/MTs": {
+  "Matematika": 3600,
+  "Bahasa Indonesia": 3600,},
   
   // Jenjang SMA Wajib
-  "SMA - Matematika": 3600,
-  "SMA - Bahasa Indonesia": 3600,
-  "SMA - Bahasa Inggris": 3600,
+    "SMA/MA/SMK": {
+  "Matematika": 3600,
+  "Bahasa Indonesia": 3600,
+  "Bahasa Inggris": 3600,
   
   // Jenjang SMA Pilihan
   "Matematika TL": 3600,
@@ -50,39 +51,42 @@ export const durasiUjian: { [mapel: string]: number } = {
   "Korea": 3600,
   "Prancis": 3600,
   "Jerman": 3600,
-  "Projek Kreatif & Kewirausahaan": 3600,
+  "Projek Kreatif & Kewirausahaan": 3600,},
 };
 
-export const bankSoal: { [mapel: string]: Soal[] } = {
+export const bankSoal: any = { 
   // Jenjang SD
-  "SD - Matematika": [],
-  "SD - Bahasa Indonesia": [],
+  "SD/MI": {
+  "Matematika": [],
+  "Bahasa Indonesia": [],},
   
   // Jenjang SMP
-  "SMP - Matematika": [],
-  "SMP - Bahasa Indonesia": [],
+ "SMP/MTs": {
+  "Matematika": [],
+  "Bahasa Indonesia": [],},
   
   // Jenjang SMA Wajib
-  "SMA - Matematika": [],
+  "SMA_Wajib": {
+  "Matematika": [],
 
- "SMA - Bahasa Indonesia": [{"id": 1, "tipe": "PG", "pertanyaan": "Portal Computer Based Test (CBT) di sekolah memicu efisiensi administrasi. Guru berperan sebagai fasilitator utama.\n Apa peran guru menurut teks?", "opsi": ["Administrator", "Fasilitator", "Pengembang", "Pengawas"], "kunci": "B", "kompetensi": "Tekstual"},
-            {id: 2, tipe: "PG", "pertanyaan": "Portal Computer Based Test (CBT) di sekolah memicu efisiensi administrasi. Guru berperan sebagai fasilitator utama. \n Kata serapan asing dalam teks adalah...", "opsi": ["Guru", "Portal", "Sekolah", "Utama"], "kunci": "B", "kompetensi": "Tekstual"},
-            {id: 3, tipe: "BS", "pertanyaan": "Portal Computer Based Test (CBT) di sekolah memicu efisiensi administrasi. Guru berperan sebagai fasilitator utama. \n CBT otomatis menghilangkan peran guru.", "opsi": ["BENAR", "SALAH"], "kunci": "SALAH", "kompetensi": "Evaluasi"},
-            {id: 4, tipe: "MCMA", "pertanyaan": "Portal Computer Based Test (CBT) di sekolah memicu efisiensi administrasi. Guru berperan sebagai fasilitator utama. \n Tujuan utama CBT:", "opsi": ["Efisiensi", "Modernisasi", "Mempersulit guru", "Mengurangi kertas"], "kunci": ["A", "B", "D"], "kompetensi": "Inferensial"},
-            {id: 5, tipe: "PG", "pertanyaan": "Kurikulum Merdeka berfokus pada konsep. Siswa lebih kritis dalam memecahkan masalah daripada sekadar menghafal.\n  Ide pokok teks tersebut adalah...", "opsi": ["Cara menghafal", "Fokus konsep kurikulum", "Masalah siswa", "Jumlah ujian"], "kunci": "B", "kompetensi": "Inferensial"},
-            {id: 6, tipe: "PG", "pertanyaan": "Kurikulum Merdeka berfokus pada konsep. Siswa lebih kritis dalam memecahkan masalah daripada sekadar menghafal.\n Apa arti 'kritis' dalam konteks teks?", "opsi": ["Marah", "Berpikir tajam", "Berbahaya", "Lambat"], "kunci": "B", "kompetensi": "Tekstual"},
-            {id: 7, tipe: "BS", "pertanyaan": "Kurikulum Merdeka berfokus pada konsep. Siswa lebih kritis dalam memecahkan masalah daripada sekadar menghafal.\n  Kurikulum ini mengutamakan hafalan.", "opsi": ["BENAR", "SALAH"], "kunci": "SALAH", "kompetensi": "Evaluasi"},
-            {id: 8, tipe: "MCMA", "pertanyaan": "Kurikulum Merdeka berfokus pada konsep. Siswa lebih kritis dalam memecahkan masalah daripada sekadar menghafal.\n  Karakteristik siswa Kurikulum Merdeka:", "opsi": ["Kritis", "Aplikatif", "Pasif", "Penghafal"], "kunci": ["A", "B"], "kompetensi": "Inferensial"},
-            {id: 9, tipe: "PG", "pertanyaan": "Kesenjangan akses internet di wilayah 3T menghambat digitalisasi pendidikan yang inklusif bagi semua siswa.\n Fenomena yang dibahas adalah...", "opsi": ["Kehebatan teknologi", "Ketimpangan akses", "Harga internet", "Libur sekolah"], "kunci": "B", "kompetensi": "Tekstual"},
-            {id: 10, tipe: "MCMA", "pertanyaan": "Kesenjangan akses internet di wilayah 3T menghambat digitalisasi pendidikan yang inklusif bagi semua siswa.\n Dampak kesenjangan akses:", "opsi": ["Akses info sulit", "Kualitas beda", "Kota jadi maju", "Pendidikan tidak merata"], "kunci": ["A", "B", "D"], "kompetensi": "Inferensial"},
-            {id: 11, tipe: "BS", "pertanyaan": "Kesenjangan akses internet di wilayah 3T menghambat digitalisasi pendidikan yang inklusif bagi semua siswa.\n Digitalisasi sudah merata di seluruh pelosok.", "opsi": ["BENAR", "SALAH"], "kunci": "SALAH", "kompetensi": "Evaluasi"},
-            {id: 12, tipe: "PG", "pertanyaan": "Kesenjangan akses internet di wilayah 3T menghambat digitalisasi pendidikan yang inklusif bagi semua siswa.\n Apa prediksi masa depan jika tidak diatasi?", "opsi": ["Kesenjangan makin lebar", "Akses merata", "Siswa pintar", "Teknologi murah"], "kunci": "A", "kompetensi": "Inferensial"},
-            {"id": 13, "tipe": "PG", "pertanyaan": "Menembus sekat layar, jemari menari di atas tuts,\n Mencari cahaya di ufuk digital yang kian memutus,\n Dunia maya membentang luas tanpa ada garis batas,\n Namun jiwa seringkali terasa lelah dan bergegas.\n Di balik pendaran piksel, ada rindu yang tersembunyi,\n Mencari arti di antara kode yang terus berbunyi,\n Kita adalah pengembara di dalam ruang yang sunyi,\n Mengetikkan harapan agar asa tetap murni.\n Biarlah tuts ini menjadi saksi setiap dentang pikir,\n Tentang mimpi yang takkan pernah sudi untuk berakhir,\n Di ufuk digital, kita terus melangkah tanpa kikir,\n Merajut makna hingga ke pelosok semesta yang hadir.\n Apa respons emosional dari puisi tersebut?", "opsi": ["Takut", "Semangat/optimis", "Bosan", "Marah"], "kunci": "B", "kompetensi": "Apresiasi"},
-            {"id": 14, "tipe": "PG", "pertanyaan": "Menembus sekat layar, jemari menari di atas tuts,\n Mencari cahaya di ufuk digital yang kian memutus,\n Dunia maya membentang luas tanpa ada garis batas,\n Namun jiwa seringkali terasa lelah dan bergegas.\n Di balik pendaran piksel, ada rindu yang tersembunyi,\n Mencari arti di antara kode yang terus berbunyi,\n Kita adalah pengembara di dalam ruang yang sunyi,\n Mengetikkan harapan agar asa tetap murni.\n Biarlah tuts ini menjadi saksi setiap dentang pikir,\n Tentang mimpi yang takkan pernah sudi untuk berakhir,\n Di ufuk digital, kita terus melangkah tanpa kikir,\n Merajut makna hingga ke pelosok semesta yang hadir.\n  Makna 'cahaya' dalam puisi adalah...", "opsi": ["Lampu", "Ilmu/harapan", "Matahari", "Layar HP"], "kunci": "B", "kompetensi": "Apresiasi"},
-            {"id": 15, "tipe": "BS", "pertanyaan": "Menembus sekat layar, jemari menari di atas tuts,\n Mencari cahaya di ufuk digital yang kian memutus,\n Dunia maya membentang luas tanpa ada garis batas,\n Namun jiwa seringkali terasa lelah dan bergegas.\n Di balik pendaran piksel, ada rindu yang tersembunyi,\n Mencari arti di antara kode yang terus berbunyi,\n Kita adalah pengembara di dalam ruang yang sunyi,\n Mengetikkan harapan agar asa tetap murni.\n Biarlah tuts ini menjadi saksi setiap dentang pikir,\n Tentang mimpi yang takkan pernah sudi untuk berakhir,\n Di ufuk digital, kita terus melangkah tanpa kikir,\n Merajut makna hingga ke pelosok semesta yang hadir.\n  Puisi ini menggambarkan kegelapan malam.", "opsi": ["BENAR", "SALAH"], "kunci": "SALAH", "kompetensi": "Apresiasi"},
-            {"id": 16, "tipe": "MCMA", "pertanyaan": "Menembus sekat layar, jemari menari di atas tuts,\n Mencari cahaya di ufuk digital yang kian memutus,\n Dunia maya membentang luas tanpa ada garis batas,\n Namun jiwa seringkali terasa lelah dan bergegas.\n Di balik pendaran piksel, ada rindu yang tersembunyi,\n Mencari arti di antara kode yang terus berbunyi,\n Kita adalah pengembara di dalam ruang yang sunyi,\n Mengetikkan harapan agar asa tetap murni.\n Biarlah tuts ini menjadi saksi setiap dentang pikir,\n Tentang mimpi yang takkan pernah sudi untuk berakhir,\n Di ufuk digital, kita terus melangkah tanpa kikir,\n Merajut makna hingga ke pelosok semesta yang hadir.\n  Gambaran suasana:", "opsi": ["Inspiratif", "Penuh perjuangan", "Statis", "Dinamis"], "kunci": ["A", "B", "D"], "kompetensi": "Apresiasi"},  
-            {"id": 17, "tipe": "PG", "pertanyaan": "Perhatikan bagan dibawah ini.\n [bagan.png] \n Langkah penentu keberhasilan adalah...", "opsi": ["Pendataan", "Validasi", "Laporan", "Evaluasi"], "kunci": "D", "kompetensi": "Tekstual"},
-            {id: 18, tipe: "TabelBS", pertanyaan: `Perhatikan bagan penelitian iklim demokrasi Indonesia berikut:
+ "Bahasa Indonesia": [{"id": "BI01", "tipe": "PG", "pertanyaan": "Portal Computer Based Test (CBT) di sekolah memicu efisiensi administrasi. Guru berperan sebagai fasilitator utama.\n Apa peran guru menurut teks?", "opsi": ["Administrator", "Fasilitator", "Pengembang", "Pengawas"], "kunci": "B",},
+            {"id": "BI02", "tipe": "PG", "pertanyaan": "Portal Computer Based Test (CBT) di sekolah memicu efisiensi administrasi. Guru berperan sebagai fasilitator utama. \n Kata serapan asing dalam teks adalah...", "opsi": ["Guru", "Portal", "Sekolah", "Utama"], "kunci": "B",},
+            {"id": "BI03", "tipe": "BS", "pertanyaan": "Portal Computer Based Test (CBT) di sekolah memicu efisiensi administrasi. Guru berperan sebagai fasilitator utama. \n CBT otomatis menghilangkan peran guru.", "opsi": ["BENAR", "SALAH"], "kunci": "SALAH",},
+            {"id": "BI04", "tipe": "MCMA", "pertanyaan": "Portal Computer Based Test (CBT) di sekolah memicu efisiensi administrasi. Guru berperan sebagai fasilitator utama. \n Tujuan utama CBT:", "opsi": ["Efisiensi", "Modernisasi", "Mempersulit guru", "Mengurangi kertas"], "kunci": ["A", "B", "D"],},
+            {"id": "BI05", "tipe": "PG", "pertanyaan": "Kurikulum Merdeka berfokus pada konsep. Siswa lebih kritis dalam memecahkan masalah daripada sekadar menghafal.\n  Ide pokok teks tersebut adalah...", "opsi": ["Cara menghafal", "Fokus konsep kurikulum", "Masalah siswa", "Jumlah ujian"], "kunci": "B",},
+            {"id": "BI06", "tipe": "PG", "pertanyaan": "Kurikulum Merdeka berfokus pada konsep. Siswa lebih kritis dalam memecahkan masalah daripada sekadar menghafal.\n Apa arti 'kritis' dalam konteks teks?", "opsi": ["Marah", "Berpikir tajam", "Berbahaya", "Lambat"], "kunci": "B",},
+            {"id": "BI07", "tipe": "BS", "pertanyaan": "Kurikulum Merdeka berfokus pada konsep. Siswa lebih kritis dalam memecahkan masalah daripada sekadar menghafal.\n  Kurikulum ini mengutamakan hafalan.", "opsi": ["BENAR", "SALAH"], "kunci": "SALAH",},
+            {"id": "BI08", "tipe": "MCMA", "pertanyaan": "Kurikulum Merdeka berfokus pada konsep. Siswa lebih kritis dalam memecahkan masalah daripada sekadar menghafal.\n  Karakteristik siswa Kurikulum Merdeka:", "opsi": ["Kritis", "Aplikatif", "Pasif", "Penghafal"], "kunci": ["A", "B"],},
+            {"id": "BI09", "tipe": "PG", "pertanyaan": "Kesenjangan akses internet di wilayah 3T menghambat digitalisasi pendidikan yang inklusif bagi semua siswa.\n Fenomena yang dibahas adalah...", "opsi": ["Kehebatan teknologi", "Ketimpangan akses", "Harga internet", "Libur sekolah"], "kunci": "B",},
+            {"id": "BI10", "tipe": "MCMA", "pertanyaan": "Kesenjangan akses internet di wilayah 3T menghambat digitalisasi pendidikan yang inklusif bagi semua siswa.\n Dampak kesenjangan akses:", "opsi": ["Akses info sulit", "Kualitas beda", "Kota jadi maju", "Pendidikan tidak merata"], "kunci": ["A", "B", "D"],},
+            {"id": "BI11", "tipe": "BS", "pertanyaan": "Kesenjangan akses internet di wilayah 3T menghambat digitalisasi pendidikan yang inklusif bagi semua siswa.\n Digitalisasi sudah merata di seluruh pelosok.", "opsi": ["BENAR", "SALAH"], "kunci": "SALAH",},
+            {"id": "BI12", "tipe": "PG", "pertanyaan": "Kesenjangan akses internet di wilayah 3T menghambat digitalisasi pendidikan yang inklusif bagi semua siswa.\n Apa prediksi masa depan jika tidak diatasi?", "opsi": ["Kesenjangan makin lebar", "Akses merata", "Siswa pintar", "Teknologi murah"], "kunci": "A",},
+            {"id": "BI13", "tipe": "PG", "pertanyaan": "Menembus sekat layar, jemari menari di atas tuts,\n Mencari cahaya di ufuk digital yang kian memutus,\n Dunia maya membentang luas tanpa ada garis batas,\n Namun jiwa seringkali terasa lelah dan bergegas.\n Di balik pendaran piksel, ada rindu yang tersembunyi,\n Mencari arti di antara kode yang terus berbunyi,\n Kita adalah pengembara di dalam ruang yang sunyi,\n Mengetikkan harapan agar asa tetap murni.\n Biarlah tuts ini menjadi saksi setiap dentang pikir,\n Tentang mimpi yang takkan pernah sudi untuk berakhir,\n Di ufuk digital, kita terus melangkah tanpa kikir,\n Merajut makna hingga ke pelosok semesta yang hadir.\n Apa respons emosional dari puisi tersebut?", "opsi": ["Takut", "Semangat/optimis", "Bosan", "Marah"], "kunci": "B",},
+            {"id": "BI14", "tipe": "PG", "pertanyaan": "Menembus sekat layar, jemari menari di atas tuts,\n Mencari cahaya di ufuk digital yang kian memutus,\n Dunia maya membentang luas tanpa ada garis batas,\n Namun jiwa seringkali terasa lelah dan bergegas.\n Di balik pendaran piksel, ada rindu yang tersembunyi,\n Mencari arti di antara kode yang terus berbunyi,\n Kita adalah pengembara di dalam ruang yang sunyi,\n Mengetikkan harapan agar asa tetap murni.\n Biarlah tuts ini menjadi saksi setiap dentang pikir,\n Tentang mimpi yang takkan pernah sudi untuk berakhir,\n Di ufuk digital, kita terus melangkah tanpa kikir,\n Merajut makna hingga ke pelosok semesta yang hadir.\n  Makna 'cahaya' dalam puisi adalah...", "opsi": ["Lampu", "Ilmu/harapan", "Matahari", "Layar HP"], "kunci": "B",},
+            {"id": "BI15", "tipe": "BS", "pertanyaan": "Menembus sekat layar, jemari menari di atas tuts,\n Mencari cahaya di ufuk digital yang kian memutus,\n Dunia maya membentang luas tanpa ada garis batas,\n Namun jiwa seringkali terasa lelah dan bergegas.\n Di balik pendaran piksel, ada rindu yang tersembunyi,\n Mencari arti di antara kode yang terus berbunyi,\n Kita adalah pengembara di dalam ruang yang sunyi,\n Mengetikkan harapan agar asa tetap murni.\n Biarlah tuts ini menjadi saksi setiap dentang pikir,\n Tentang mimpi yang takkan pernah sudi untuk berakhir,\n Di ufuk digital, kita terus melangkah tanpa kikir,\n Merajut makna hingga ke pelosok semesta yang hadir.\n  Puisi ini menggambarkan kegelapan malam.", "opsi": ["BENAR", "SALAH"], "kunci": "SALAH",},
+            {"id": "BI16", "tipe": "MCMA", "pertanyaan": "Menembus sekat layar, jemari menari di atas tuts,\n Mencari cahaya di ufuk digital yang kian memutus,\n Dunia maya membentang luas tanpa ada garis batas,\n Namun jiwa seringkali terasa lelah dan bergegas.\n Di balik pendaran piksel, ada rindu yang tersembunyi,\n Mencari arti di antara kode yang terus berbunyi,\n Kita adalah pengembara di dalam ruang yang sunyi,\n Mengetikkan harapan agar asa tetap murni.\n Biarlah tuts ini menjadi saksi setiap dentang pikir,\n Tentang mimpi yang takkan pernah sudi untuk berakhir,\n Di ufuk digital, kita terus melangkah tanpa kikir,\n Merajut makna hingga ke pelosok semesta yang hadir.\n  Gambaran suasana:", "opsi": ["Inspiratif", "Penuh perjuangan", "Statis", "Dinamis"], "kunci": ["A", "B", "D"],},  
+            {"id": "BI17", "tipe": "PG", "pertanyaan": "Perhatikan bagan dibawah ini.\n [bagan.png] \n Langkah penentu keberhasilan adalah...", "opsi": ["Pendataan", "Validasi", "Laporan", "Evaluasi"], "kunci": "D",},
+            {"id": "BI18", "tipe": "TabelBS", pertanyaan: `Perhatikan bagan penelitian iklim demokrasi Indonesia berikut:
 \n [bagan.png] \n Berdasarkan alur penelitian di atas, tentukan apakah pernyataan berikut benar atau salah.`,
   opsi: [
     "Tahap evaluasi merupakan tahap terakhir yang menjadi penentu keberhasilan penelitian.",
@@ -90,15 +94,15 @@ export const bankSoal: { [mapel: string]: Soal[] } = {
     "Penyusunan draf laporan akhir dilakukan setelah melalui tahap validasi."
   ],
   kunci: ["Setuju", "Tidak Setuju", "Setuju"],
-  kompetensi: "Analisis Bagan"
+  },
+            {"id": "BI19", "tipe": "MCMA", "pertanyaan": "Perhatikan bagan dibawah ini.\n [bagan.png] \n Urutan sistem laporan:", "opsi": ["Pendataan", "Validasi", "Evaluasi", "Distribusi"], "kunci": ["A", "B", "C"],},
+            {"id": "BI20", "tipe": "PG", "pertanyaan": "Perhatikan bagan dibawah ini.\n [bagan.png] \n Teks tersebut berbentuk...", "opsi": ["Cerita pendek", "Bagan kerangka", "Puisi", "Drama"], "kunci": "B",}],
+  
+    "Bahasa Inggris": [],
 },
-            {"id": 19, "tipe": "MCMA", "pertanyaan": "Perhatikan bagan dibawah ini.\n [bagan.png] \n Urutan sistem laporan:", "opsi": ["Pendataan", "Validasi", "Evaluasi", "Distribusi"], "kunci": ["A", "B", "C"], "kompetensi": "Tekstual"},
-            {"id": 20, "tipe": "PG", "pertanyaan": "Perhatikan bagan dibawah ini.\n [bagan.png] \n Teks tersebut berbentuk...", "opsi": ["Cerita pendek", "Bagan kerangka", "Puisi", "Drama"], "kunci": "B", "kompetensi": "Tekstual"}],
-  
-    "SMA - Bahasa Inggris": [],
-  
   // Jenjang SMA Pilihan
-  "Matematika TL": [ { 
+  "SMA_Pilihan":{
+    "Matematika TL": [ { 
     id: "TRY01", 
     tipe: "PG", 
     pertanyaan: "Jika $P = Q^T$ dengan $P = \\begin{pmatrix} x-y & 4 \\\\ 3x & 5 \\end{pmatrix}$ dan $Q = \\begin{pmatrix} 7 & 6 \\\\ 4 & z \\end{pmatrix}$, nilai $x + y + z = \\dots$", 
@@ -178,4 +182,5 @@ export const bankSoal: { [mapel: string]: Soal[] } = {
   "Prancis": [],
   "Jerman": [],
   "Projek Kreatif & Kewirausahaan": []
+}
 };

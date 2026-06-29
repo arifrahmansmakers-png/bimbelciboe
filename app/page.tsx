@@ -1,5 +1,9 @@
 import Link from 'next/link';
 import { BookOpen, Laptop, Pencil, GraduationCap } from 'lucide-react';
+export const metadata = {
+  title: 'Ciboe Edu | Bimbel TKA Terpercaya',
+  description: 'Solusi belajar TKA untuk SD, SMP, dan SMA dengan harga terjangkau.',
+}
 
 export default function Home() {
   const menuItems = [
