@@ -17,20 +17,37 @@ export const bobotSoal = {
 export const durasiUjian: Record<string, Record<string, number>> = {
   // Jenjang SD/MI
   "SD/MI": {
-  "Matematika": 3600,
-  "Bahasa Indonesia": 3600,},
+  "Matematika 1": 3600,
+  "Matematika 2": 3600,
+  "Matematika 3": 3600,
+  "Bahasa Indonesia 1": 3600,
+  "Bahasa Indonesia 2": 3600,
+  "Bahasa Indonesia 3": 3600,
+},
   
   // Jenjang SMP
  "SMP/MTs": {
-  "Matematika": 3600,
-  "Bahasa Indonesia": 3600,},
+  "Matematika 1": 3600,
+  "Matematika 2": 3600,
+  "Matematika 3": 3600,
+  "Bahasa Indonesia 1": 3600,
+  "Bahasa Indonesia 2": 3600,
+  "Bahasa Indonesia 3": 3600,
+},
   
   // Jenjang SMA Wajib
     "SMA/MA/SMK": {
-  "Matematika": 3600,
-  "Bahasa Indonesia": 3600,
-  "Bahasa Inggris": 3600,
-  
+  "Matematika 1": 3600,
+  "Matematika 2": 3600,
+  "Matematika 3": 3600,
+  "Bahasa Indonesia 1": 3600,
+  "Bahasa Indonesia 2": 3600,
+  "Bahasa Indonesia 3": 3600,
+  "Bahasa Inggris 1": 3600,
+  "Bahasa Inggris 2": 3600,
+  "Bahasa Inggris 3": 3600,
+
+
   // Jenjang SMA Pilihan
   "Matematika TL": 3600,
   "Indonesia TL": 3600,
@@ -57,19 +74,31 @@ export const durasiUjian: Record<string, Record<string, number>> = {
 export const bankSoal: any = { 
   // Jenjang SD
   "SD/MI": {
-  "Matematika": [],
-  "Bahasa Indonesia": [],},
+  "Matematika 1": [],
+  "Matematika 2": [],
+  "Matematika 3": [],
+  "Bahasa Indonesia 1": [],
+  "Bahasa Indonesia 2": [],
+  "Bahasa Indonesia 3": [],
+},
   
   // Jenjang SMP
  "SMP/MTs": {
-  "Matematika": [],
-  "Bahasa Indonesia": [],},
+  "Matematika 1": [],
+  "Matematika 2": [],
+  "Matematika 3": [],
+  "Bahasa Indonesia 1": [],
+  "Bahasa Indonesia 2": [],
+  "Bahasa Indonesia 3": [],
+},
   
   // Jenjang SMA Wajib
   "SMA_Wajib": {
-  "Matematika": [],
-
- "Bahasa Indonesia": [{"id": "BI01", "tipe": "PG", "pertanyaan": "Portal Computer Based Test (CBT) di sekolah memicu efisiensi administrasi. Guru berperan sebagai fasilitator utama.\n Apa peran guru menurut teks?", "opsi": ["Administrator", "Fasilitator", "Pengembang", "Pengawas"], "kunci": "B",},
+    "Matematika 1": [],
+  "Matematika 2": [],
+  "Matematika 3": [],
+  
+ "Bahasa Indonesia 1": [{"id": "BI01", "tipe": "PG", "pertanyaan": "Portal Computer Based Test (CBT) di sekolah memicu efisiensi administrasi. Guru berperan sebagai fasilitator utama.\n Apa peran guru menurut teks?", "opsi": ["Administrator", "Fasilitator", "Pengembang", "Pengawas"], "kunci": "B",},
             {"id": "BI02", "tipe": "PG", "pertanyaan": "Portal Computer Based Test (CBT) di sekolah memicu efisiensi administrasi. Guru berperan sebagai fasilitator utama. \n Kata serapan asing dalam teks adalah...", "opsi": ["Guru", "Portal", "Sekolah", "Utama"], "kunci": "B",},
             {"id": "BI03", "tipe": "BS", "pertanyaan": "Portal Computer Based Test (CBT) di sekolah memicu efisiensi administrasi. Guru berperan sebagai fasilitator utama. \n CBT otomatis menghilangkan peran guru.", "opsi": ["BENAR", "SALAH"], "kunci": "SALAH",},
             {"id": "BI04", "tipe": "MCMA", "pertanyaan": "Portal Computer Based Test (CBT) di sekolah memicu efisiensi administrasi. Guru berperan sebagai fasilitator utama. \n Tujuan utama CBT:", "opsi": ["Efisiensi", "Modernisasi", "Mempersulit guru", "Mengurangi kertas"], "kunci": ["A", "B", "D"],},
@@ -97,8 +126,13 @@ export const bankSoal: any = {
   },
             {"id": "BI19", "tipe": "MCMA", "pertanyaan": "Perhatikan bagan dibawah ini.\n [bagan.png] \n Urutan sistem laporan:", "opsi": ["Pendataan", "Validasi", "Evaluasi", "Distribusi"], "kunci": ["A", "B", "C"],},
             {"id": "BI20", "tipe": "PG", "pertanyaan": "Perhatikan bagan dibawah ini.\n [bagan.png] \n Teks tersebut berbentuk...", "opsi": ["Cerita pendek", "Bagan kerangka", "Puisi", "Drama"], "kunci": "B",}],
-  
-    "Bahasa Inggris": [],
+
+  "Bahasa Indonesia 2": [],
+  "Bahasa Indonesia 3": [],
+
+    "Bahasa Inggris A": [],
+    "Bahasa Inggris B": [],
+    "Bahasa Inggris C": [],
 },
   // Jenjang SMA Pilihan
   "SMA_Pilihan":{

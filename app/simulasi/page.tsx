@@ -1,6 +1,7 @@
 'use client';
 import { useState } from 'react';
 import Link from 'next/link';
+import { ArrowLeft } from 'lucide-react'; // Import icon panah
 // Data menu diasumsikan memiliki key: SD/MI, SMP/MTs, SMA_Wajib, SMA_Pilihan
 import { menuSimulasi } from '../../data/menu';
 
@@ -27,11 +28,17 @@ export default function SimulasiPage() {
     // Latar belakang biru tua pekat yang senada dengan halaman awal
     <main className="min-h-screen bg-[#001e38] text-white p-6 md:py-12">
       <div className="max-w-5xl mx-auto">
+
+        {/* Tombol Kembali ke Beranda */}
+        <Link href="/" className="inline-flex items-center gap-2 text-gray-400 hover:text-white transition-colors mb-8">
+          <ArrowLeft size={20} />
+          <span>Kembali ke Beranda</span>
+        </Link>
         
         {/* Header - Senada dengan Judul Utama di Halaman Awal */}
         <div className="mb-10 text-center md:text-left">
           <h1 className="text-4xl font-extrabold text-[#f6cb2c] leading-tight mb-2">
-            Pilih Simulasi
+            Pilih Simulasi TKA
           </h1>
           <p className="text-xl text-gray-200">
             Pilih jenjang pendidikan Anda untuk mulai latihan ujian.
