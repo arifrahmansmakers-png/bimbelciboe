@@ -1,20 +1,14 @@
-export async function POST(req: Request) {
-  console.log("DEBUG: Webhook endpoint dipanggil!"); // Tambahkan ini
-  
-  try {
-    const body = await req.json();
-    console.log("DEBUG: Body diterima:", body); // Tambahkan ini
-    
-    // ... sisa kode Anda ...
-export const dynamic = 'force-dynamic';
-
 import { NextRequest, NextResponse } from 'next/server';
 import { adminDb } from '@/lib/firebaseAdmin';
 
+// Pastikan route ini tidak di-cache oleh Vercel
+export const dynamic = 'force-dynamic';
 
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
+    console.log("DEBUG: Body diterima:", body);
+
     const { order_id, transaction_status, fraud_status } = body;
 
     // 1. Ambil referensi transaksi di Firestore
@@ -22,10 +16,11 @@ export async function POST(req: NextRequest) {
     const transDoc = await transRef.get();
 
     if (!transDoc.exists) {
+      console.log(`DEBUG: Transaksi ${order_id} tidak ditemukan`);
       return NextResponse.json({ message: 'Transaction not found' }, { status: 404 });
     }
 
-    // 2. Gunakan switch case di sini untuk menangani status
+    // 2. Gunakan switch case untuk menangani status
     switch (transaction_status) {
       case 'settlement':
       case 'capture':
