@@ -1,36 +1,36 @@
 import { NextResponse } from 'next/server';
-import { adminDb } from '@/lib/firebaseAdmin';
+import { getAdminDb } from '@/lib/firebaseAdmin'; // Impor fungsinya
 
 export const dynamic = 'force-dynamic';
 
 export async function POST(req: Request) {
   try {
-    // 1. Dynamic Import untuk mencegah error saat build
+    // 1. Dynamic Import Midtrans agar tidak membebani build time
     const midtransClient = await import('midtrans-client');
+    
+    // 2. Inisialisasi Firebase Admin (Runtime)
+    const adminDb = getAdminDb();
     
     const data = await req.json();
     const { paket, harga, orderId, nama, email, wa, tglLahir, password } = data;
 
-import { adminDb } from '@/lib/firebaseAdmin';
-
-    // Di dalam fungsi POST:
-    if (!adminDb) {
-      return NextResponse.json({ error: "Firebase not initialized" }, { status: 500 });
-    }
-
-    // 2. Simpan ke Firestore
+    // 3. Simpan ke Firestore
     await adminDb.collection('transactions').doc(orderId).set({
-      nama, email, wa, tglLahir,
+      nama, 
+      email, 
+      wa, 
+      tglLahir,
       password: Buffer.from(password).toString('base64'),
-      paket, harga,
+      paket, 
+      harga,
       status: 'PENDING',
       createdAt: new Date().toISOString()
     });
 
-    // 3. Setup Midtrans
+    // 4. Setup Midtrans
     const serverKey = process.env.MIDTRANS_SERVER_KEY;
     if (!serverKey) {
-      throw new Error("MIDTRANS_SERVER_KEY tidak ditemukan");
+      throw new Error("MIDTRANS_SERVER_KEY tidak ditemukan di environment variables");
     }
 
     const snap = new midtransClient.Snap({
@@ -41,12 +41,24 @@ import { adminDb } from '@/lib/firebaseAdmin';
     const cleanHarga = parseInt(harga.toString().replace(/[^0-9]/g, ''));
 
     const parameter = {
-      transaction_details: { order_id: orderId, gross_amount: cleanHarga },
-      customer_details: { first_name: nama, email: email, phone: wa },
-      item_details: [{ id: paket, price: cleanHarga, quantity: 1, name: paket }]
+      transaction_details: { 
+        order_id: orderId, 
+        gross_amount: cleanHarga 
+      },
+      customer_details: { 
+        first_name: nama, 
+        email: email, 
+        phone: wa 
+      },
+      item_details: [{ 
+        id: paket, 
+        price: cleanHarga, 
+        quantity: 1, 
+        name: paket 
+      }]
     };
 
-    // 4. Create Transaction
+    // 5. Create Transaction
     const transaction = await snap.createTransaction(parameter);
     
     return NextResponse.json({ token: transaction.token });
