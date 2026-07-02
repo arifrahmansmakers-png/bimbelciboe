@@ -11,6 +11,13 @@ export async function POST(req: Request) {
     const data = await req.json();
     const { paket, harga, orderId, nama, email, wa, tglLahir, password } = data;
 
+import { adminDb } from '@/lib/firebaseAdmin';
+
+    // Di dalam fungsi POST:
+    if (!adminDb) {
+      return NextResponse.json({ error: "Firebase not initialized" }, { status: 500 });
+    }
+
     // 2. Simpan ke Firestore
     await adminDb.collection('transactions').doc(orderId).set({
       nama, email, wa, tglLahir,

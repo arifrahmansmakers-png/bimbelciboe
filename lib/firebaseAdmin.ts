@@ -1,15 +1,23 @@
 import { initializeApp, getApps, cert } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';
 
-// Pastikan variabel environment ada
-const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_KEY!);
+// Jangan jalankan JSON.parse di level atas (global scope)
+// Bungkus dalam sebuah fungsi atau lakukan pengecekan
+const getFirebaseAdmin = () => {
+  if (!getApps().length) {
+    const serviceAccountKey = process.env.FIREBASE_SERVICE_ACCOUNT_KEY;
 
-// Cek apakah aplikasi sudah diinisialisasi
-if (!getApps().length) {
-  initializeApp({
-    credential: cert(serviceAccount),
-  });
-}
+    if (!serviceAccountKey) {
+      console.error("FIREBASE_SERVICE_ACCOUNT_KEY tidak ditemukan!");
+      return null;
+    }
 
-// Gunakan fungsi getFirestore() untuk mendapatkan instance database
-export const adminDb = getFirestore();
+    initializeApp({
+      credential: cert(JSON.parse(serviceAccountKey)),
+    });
+  }
+  return getFirestore();
+};
+
+// Ekspor sebagai fungsi, bukan instance langsung
+export const adminDb = getFirebaseAdmin();
