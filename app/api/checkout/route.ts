@@ -1,7 +1,10 @@
 import { NextResponse } from 'next/server';
 // @ts-ignore
 import midtransClient from 'midtrans-client';
-import { adminDb } from '@/lib/firebaseAdmin'; // Pastikan path ini benar
+import { adminDb } from '@/lib/firebaseAdmin';
+
+// Mencegah error saat build Vercel dengan memaksa mode runtime
+export const dynamic = 'force-dynamic';
 
 export async function POST(req: Request) {
   try {
@@ -10,24 +13,33 @@ export async function POST(req: Request) {
       paket, harga, orderId, nama, email, wa, tglLahir, password 
     } = data;
 
-    // 1. Simpan data user dan status order ke Firestore
-    // Ini langkah penting agar data tetap ada walaupun user menutup tab sebelum bayar
+    // 1. Simpan data ke Firestore
     await adminDb.collection('transactions').doc(orderId).set({
       nama,
       email,
       wa,
       tglLahir,
-      password: Buffer.from(password).toString('base64'), // Sederhana: simpan sebagai base64
+      password: Buffer.from(password).toString('base64'),
       paket,
       harga,
       status: 'PENDING',
       createdAt: new Date().toISOString()
     });
 
-    // 2. Setup Midtrans
+    // 2. Setup Midtrans dengan proteksi dan log untuk debugging
+    const serverKey = process.env.MIDTRANS_SERVER_KEY;
+
+    // Log ini akan muncul di Vercel Logs saat API ini dipanggil
+    console.log("DEBUG: Status MIDTRANS_SERVER_KEY ditemukan:", !!serverKey);
+
+    if (!serverKey) {
+      console.error("DEBUG ERROR: MIDTRANS_SERVER_KEY tidak ditemukan di environment variables!");
+      return NextResponse.json({ error: "Server configuration error" }, { status: 500 });
+    }
+
     let snap = new midtransClient.Snap({
       isProduction: false,
-      serverKey: process.env.MIDTRANS_SERVER_KEY!
+      serverKey: serverKey
     });
 
     const cleanHarga = parseInt(harga.toString().replace(/[^0-9]/g, ''));

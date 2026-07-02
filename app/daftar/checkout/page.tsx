@@ -3,6 +3,8 @@ import { useState, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { DATA_HARGA } from '../../../data/harga';
 
+export const dynamic = 'force-dynamic';
+
 declare global {
   interface Window {
     snap: { pay: (token: string, options?: any) => void };

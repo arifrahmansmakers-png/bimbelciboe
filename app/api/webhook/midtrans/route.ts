@@ -1,9 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { adminDb } from '@/lib/firebaseAdmin';
 
-// Pastikan route ini tidak di-cache oleh Vercel
 export const dynamic = 'force-dynamic';
 
+// 1. Fungsi untuk testing di browser
+export async function GET() {
+  return NextResponse.json({ message: "API endpoint aktif!" });
+}
+
+// 2. Fungsi untuk Webhook Midtrans (POST)
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
