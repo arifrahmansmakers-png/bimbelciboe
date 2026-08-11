@@ -7,7 +7,9 @@ export async function GET() {
   try {
     const db = getAdminDb();
 
-    const snapshot = await db.collection("packages").get();
+    const snapshot = await db
+      .collection("packages")
+      .get();
 
     const packages = snapshot.docs
       .map((doc) => {
@@ -15,31 +17,99 @@ export async function GET() {
 
         return {
           id: doc.id,
-          kode: data.kode ?? "",
-          nama: data.nama ?? "",
-          harga: Number(data.harga ?? 0),
-          durasiHari: Number(data.durasiHari ?? 0),
-          deskripsi: data.deskripsi ?? "",
-          warna: data.warna ?? "#2563eb",
-          icon: data.icon ?? "",
-          fitur: Array.isArray(data.fitur) ? data.fitur : [],
-          aktif: data.aktif ?? false,
-          urutan: Number(data.urutan ?? 999),
+
+          // Identitas paket
+          slug:
+            typeof data.slug === "string"
+              ? data.slug
+              : doc.id,
+
+          kode:
+            typeof data.kode === "string"
+              ? data.kode
+              : doc.id,
+
+          nama:
+            typeof data.name === "string"
+              ? data.name
+              : "",
+
+          // Harga & durasi
+          harga: Number(
+            data.price ?? 0
+          ),
+
+          durasiHari: Number(
+            data.durationDays ?? 0
+          ),
+
+          // Informasi paket
+          deskripsi:
+            typeof data.description === "string"
+              ? data.description
+              : "",
+
+          fitur: Array.isArray(
+            data.features
+          )
+            ? data.features
+            : [],
+
+          // Tampilan
+          warna:
+            typeof data.color === "string"
+              ? data.color
+              : "#2563eb",
+
+          icon:
+            typeof data.icon === "string"
+              ? data.icon
+              : "",
+
+          // Status & urutan
+          aktif:
+            data.isActive === true,
+
+          urutan: Number(
+            data.order ?? 999
+          )
         };
       })
-      .filter((pkg) => pkg.aktif)
-      .sort((a, b) => a.urutan - b.urutan)
-      .map(({ aktif, urutan, ...pkg }) => pkg);
+
+      // Hanya paket yang aktif
+      .filter(
+        (pkg) => pkg.aktif
+      )
+
+      // Urut berdasarkan order
+      .sort(
+        (a, b) =>
+          a.urutan - b.urutan
+      )
+
+      // Field internal tidak perlu dikirim
+      .map(
+        ({
+          aktif,
+          urutan,
+          ...pkg
+        }) => pkg
+      );
 
     return NextResponse.json(
       {
         success: true,
-        data: packages,
+        data: packages
       },
-      { status: 200 }
+      {
+        status: 200
+      }
     );
   } catch (error) {
-    console.error("GET /api/packages:", error);
+    console.error(
+      "GET /api/packages:",
+      error
+    );
 
     return NextResponse.json(
       {
@@ -47,9 +117,11 @@ export async function GET() {
         message:
           error instanceof Error
             ? error.message
-            : "Gagal mengambil data paket.",
+            : "Gagal mengambil data paket."
       },
-      { status: 500 }
+      {
+        status: 500
+      }
     );
   }
 }

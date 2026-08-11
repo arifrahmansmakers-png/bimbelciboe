@@ -5,7 +5,17 @@ export const dynamic = "force-dynamic";
 
 export async function POST(req: NextRequest) {
   try {
-    const { kode, packageId } = await req.json();
+    const body = await req.json();
+
+    const kode =
+      typeof body.kode === "string"
+        ? body.kode.trim().toUpperCase()
+        : "";
+
+    const packageId =
+      typeof body.packageId === "string"
+        ? body.packageId.trim()
+        : "";
 
     if (!kode || !packageId) {
       return NextResponse.json({
@@ -16,7 +26,10 @@ export async function POST(req: NextRequest) {
 
     const db = getAdminDb();
 
-    // ambil paket
+    // =====================================================
+    // PAKET
+    // =====================================================
+
     const packageDoc = await db
       .collection("packages")
       .doc(packageId)
@@ -31,12 +44,29 @@ export async function POST(req: NextRequest) {
 
     const paket = packageDoc.data();
 
-    const harga = paket?.harga ?? 0;
+    if (paket?.isActive !== true) {
+      return NextResponse.json({
+        success: false,
+        message: "Paket tidak tersedia.",
+      });
+    }
 
-    // ambil voucher
+    const harga = Number(paket?.price ?? 0);
+
+    if (!Number.isFinite(harga) || harga <= 0) {
+      return NextResponse.json({
+        success: false,
+        message: "Harga paket tidak valid.",
+      });
+    }
+
+    // =====================================================
+    // VOUCHER
+    // =====================================================
+
     const voucherDoc = await db
       .collection("vouchers")
-      .doc(kode.toUpperCase())
+      .doc(kode)
       .get();
 
     if (!voucherDoc.exists) {
@@ -48,32 +78,90 @@ export async function POST(req: NextRequest) {
 
     const voucher = voucherDoc.data();
 
-    if (!voucher?.aktif) {
+    // =====================================================
+    // STATUS
+    // =====================================================
+
+    if (voucher?.active !== true) {
       return NextResponse.json({
         success: false,
         message: "Voucher tidak aktif.",
       });
     }
 
-    const sekarang = new Date();
+    // =====================================================
+    // TANGGAL
+    // FIELD ASLI FIRESTORE:
+    // validFrom
+    // validUntil
+    // =====================================================
 
-    if (voucher.mulai?.toDate() > sekarang) {
+    const now = new Date();
+
+    let validFrom: Date | null = null;
+    let validUntil: Date | null = null;
+
+    if (voucher?.validFrom) {
+      if (
+        typeof voucher.validFrom.toDate === "function"
+      ) {
+        validFrom = voucher.validFrom.toDate();
+      } else {
+        const date = new Date(
+          voucher.validFrom
+        );
+
+        if (!Number.isNaN(date.getTime())) {
+          validFrom = date;
+        }
+      }
+    }
+
+    if (voucher?.validUntil) {
+      if (
+        typeof voucher.validUntil.toDate === "function"
+      ) {
+        validUntil = voucher.validUntil.toDate();
+      } else {
+        const date = new Date(
+          voucher.validUntil
+        );
+
+        if (!Number.isNaN(date.getTime())) {
+          validUntil = date;
+        }
+      }
+    }
+
+    if (validFrom && validFrom > now) {
       return NextResponse.json({
         success: false,
         message: "Voucher belum berlaku.",
       });
     }
 
-    if (voucher.selesai?.toDate() < sekarang) {
+    if (validUntil && validUntil < now) {
       return NextResponse.json({
         success: false,
         message: "Voucher sudah berakhir.",
       });
     }
 
+    // =====================================================
+    // KUOTA
+    // =====================================================
+
+    const quota = Number(
+      voucher?.quota ?? 0
+    );
+
+    const used = Number(
+      voucher?.used ?? 0
+    );
+
     if (
-      voucher.kuota &&
-      voucher.digunakan >= voucher.kuota
+      quota > 0 &&
+      used >= quota
     ) {
       return NextResponse.json({
         success: false,
@@ -81,61 +169,206 @@ export async function POST(req: NextRequest) {
       });
     }
 
+    // =====================================================
+    // MINIMUM PEMBELIAN
+    // =====================================================
+
+    const minimumPurchase = Number(
+      voucher?.minimumPurchase ?? 0
+    );
+
     if (
-      voucher.minimalPembelian &&
-      harga < voucher.minimalPembelian
+      minimumPurchase > 0 &&
+      harga < minimumPurchase
     ) {
       return NextResponse.json({
         success: false,
-        message: `Minimal transaksi Rp ${voucher.minimalPembelian.toLocaleString("id-ID")}`,
+        message:
+          `Minimal transaksi Rp ${minimumPurchase.toLocaleString(
+            "id-ID"
+          )}.`,
       });
     }
 
+    // =====================================================
+    // DISKON
+    //
+    // FIELD ASLI FIRESTORE:
+    // diskonType
+    // diskonValue
+    // =====================================================
+
+    const diskonType =
+      typeof voucher?.diskonType === "string"
+        ? voucher.diskonType
+            .trim()
+            .toLowerCase()
+        : "";
+
+    const diskonValue = Number(
+      voucher?.diskonValue ?? 0
+    );
+
+    // =====================================================
+    // NORMALISASI JENIS DISKON
+    // =====================================================
+
+    let tipeDiskon:
+      | "percent"
+      | "fixed";
+
+    if (
+      diskonType === "percent" ||
+      diskonType === "percentage" ||
+      diskonType === "persen"
+    ) {
+      tipeDiskon = "percent";
+    } else if (
+      diskonType === "fixed" ||
+      diskonType === "nominal" ||
+      diskonType === "rupiah"
+    ) {
+      tipeDiskon = "fixed";
+    } else {
+      return NextResponse.json({
+        success: false,
+        message:
+          "Jenis diskon voucher tidak valid.",
+      });
+    }
+
+    // =====================================================
+    // VALIDASI NILAI
+    // =====================================================
+
+    if (
+      !Number.isFinite(diskonValue) ||
+      diskonValue <= 0
+    ) {
+      return NextResponse.json({
+        success: false,
+        message:
+          "Nilai diskon voucher tidak valid.",
+      });
+    }
+
+    // =====================================================
+    // HITUNG DISKON
+    // =====================================================
+
     let potongan = 0;
 
-    if (voucher.diskonTipe === "persen") {
-      potongan = Math.round(
-        harga * voucher.diskonNilai / 100
+    if (tipeDiskon === "percent") {
+      if (diskonValue > 100) {
+        return NextResponse.json({
+          success: false,
+          message:
+            "Persentase diskon tidak valid.",
+        });
+      }
+
+      potongan = Math.floor(
+        (harga * diskonValue) / 100
       );
     } else {
-      potongan = voucher.diskonNilai;
+      potongan = diskonValue;
     }
 
-    if (potongan > harga) {
-      potongan = harga;
+    potongan = Math.min(
+      potongan,
+      harga
+    );
+
+    const hargaAkhir =
+      harga - potongan;
+
+    if (hargaAkhir <= 0) {
+      return NextResponse.json({
+        success: false,
+        message:
+          "Harga setelah diskon tidak valid.",
+      });
     }
+
+    // =====================================================
+    // RESPONSE
+    // =====================================================
 
     return NextResponse.json({
       success: true,
 
       voucher: {
-        kode: kode.toUpperCase(),
-        jenis: voucher.jenis,
-        partnerUid: voucher.partnerUid ?? null,
+        kode,
+
+        type:
+          typeof voucher?.type === "string"
+            ? voucher.type
+            : null,
+
+        partnerUid:
+          voucher?.partnerUid ??
+          null,
       },
 
-      potongan,
+      paket: {
+        id: packageDoc.id,
+
+        slug:
+          typeof paket?.slug === "string"
+            ? paket.slug
+            : null,
+
+        nama:
+          typeof paket?.name === "string"
+            ? paket.name
+            : "",
+
+        harga,
+
+        durasiHari:
+          Number(
+            paket?.durationDays ?? 0
+          ),
+      },
 
       hargaAwal: harga,
 
-      hargaAkhir: harga - potongan,
+      potongan,
 
-      komisi: voucher.komisiAktif
-        ? {
-            tipe: voucher.komisiTipe,
-            nilai: voucher.komisiNilai,
-          }
-        : null,
+      hargaAkhir,
+
+      diskon: {
+        tipe: tipeDiskon,
+        nilai: diskonValue,
+      },
+
+      minimumPurchase,
+
+      validFrom:
+        validFrom
+          ? validFrom.toISOString()
+          : null,
+
+      validUntil:
+        validUntil
+          ? validUntil.toISOString()
+          : null,
     });
-
   } catch (error) {
+    console.error(
+      "POST /api/check-voucher:",
+      error
+    );
 
-    console.error(error);
-
-    return NextResponse.json({
-      success: false,
-      message: "Gagal memeriksa voucher.",
-    });
-
+    return NextResponse.json(
+      {
+        success: false,
+        message:
+          "Gagal memeriksa voucher.",
+      },
+      {
+        status: 500,
+      }
+    );
   }
 }

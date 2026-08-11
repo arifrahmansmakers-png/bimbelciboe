@@ -1,17 +1,23 @@
-'use client';
-import { auth, db } from '@/lib/firebase';
-import { useEffect, useState } from 'react';
-import { doc, getDoc } from 'firebase/firestore';
+import { redirect } from "next/navigation";
 
-export default function DashboardPage() {
-  const [loading, setLoading] = useState(true);
+import { getCurrentUser } from "@/lib/auth";
 
-  useEffect(() => {
-    if (!auth! || !db) return;
-    // Lakukan aksi data di sini...
-    setLoading(false);
-  }, []);
+export default async function DashboardPage() {
+  const user = await getCurrentUser();
 
-  if (!auth! || !db) return <div>Memuat...</div>;
-  return <h1>Selamat Datang di Dashboard</h1>;
+  if (!user) {
+    redirect("/login");
+  }
+
+  switch (user.role) {
+    case "admin":
+      redirect("/dashboard/admin");
+
+    case "affiliate":
+      redirect("/dashboard/affiliate");
+
+    case "member":
+    default:
+      redirect("/dashboard/member");
+  }
 }
