@@ -1,448 +1,930 @@
-import { NextResponse } from "next/server";
-import { getAuth } from "firebase-admin/auth";
-import { FieldValue } from "firebase-admin/firestore";
-import { getAdminDb } from "@/lib/firebaseAdmin";
-import { decrypt } from "@/lib/crypto";
+import { NextRequest, NextResponse } from "next/server";
 import crypto from "crypto";
-
+import { getAdminDb } from "@/lib/firebaseAdmin";
+import { FieldValue } from "firebase-admin/firestore";
+import { decrypt } from "@/lib/crypto";
 
 export const dynamic = "force-dynamic";
 
-const success = (message: string) =>
-  NextResponse.json({ success: true, message });
-
-const failed = (message: string, status = 400) =>
-  NextResponse.json({ success: false, message }, { status });
-
-export async function GET() {
-  return success("Webhook Midtrans aktif.");
+interface MidtransNotification {
+  order_id?: string;
+  transaction_status?: string;
+  fraud_status?: string;
+  payment_type?: string;
+  transaction_id?: string;
+  transaction_time?: string;
+  settlement_time?: string;
+  status_code?: string;
+  gross_amount?: string | number;
+  signature_key?: string;
 }
 
-export async function POST(req: Request) {
-  try {
+const json = (data: any, status = 200) =>
+  NextResponse.json(data, { status });
 
-    const adminDb = getAdminDb();
+function paymentStatus(
+  transactionStatus: string,
+  fraudStatus?: string
+) {
+  switch (transactionStatus) {
+    case "settlement":
+      return "PAID";
+
+    case "capture":
+      return fraudStatus === "challenge"
+        ? "CHALLENGE"
+        : "PAID";
+
+    case "pending":
+      return "PENDING";
+
+    case "deny":
+      return "DENIED";
+
+    case "cancel":
+      return "CANCELLED";
+
+    case "expire":
+      return "EXPIRED";
+
+    case "failure":
+      return "FAILED";
+
+    default:
+      return "UNKNOWN";
+  }
+}
+
+function toDate(value: any): Date | null {
+  if (!value) return null;
+
+  if (typeof value?.toDate === "function") {
+    return value.toDate();
+  }
+
+  const date = new Date(value);
+
+  return Number.isNaN(date.getTime())
+    ? null
+    : date;
+}
+
+function getDuration(data: any) {
+  const value = Number(
+    data.packageDurasiHari ?? 0
+  );
+
+  return Number.isFinite(value) && value > 0
+    ? Math.floor(value)
+    : 0;
+}
+
+export async function POST(req: NextRequest) {
+  try {
+    const db = getAdminDb();
+
+    const { getAuth } =
+      await import("firebase-admin/auth");
+
     const auth = getAuth();
 
-    const body = await req.json();
+    const body =
+      (await req.json()) as MidtransNotification;
 
-    console.log("========== MIDTRANS WEBHOOK ==========");
-    console.log(body);
+    console.log("MIDTRANS WEBHOOK:", body);
 
-    // Test Notification Midtrans
-    if (!body.order_id)
-      return success("Webhook aktif.");
+    // =====================================================
+    // DATA MIDTRANS
+    // =====================================================
 
-    const {
-      order_id,
-      transaction_status,
-      status_code,
-      gross_amount,
-      signature_key,
-      payment_type,
-      transaction_id
-    } = body;
+    const orderId =
+      body.order_id?.trim() ?? "";
 
-    // ==========================
-    // VALIDASI SIGNATURE
-    // ==========================
+    const transactionStatus =
+      body.transaction_status
+        ?.trim()
+        .toLowerCase() ?? "";
 
-    const serverKey = process.env.MIDTRANS_SERVER_KEY;
+    const fraudStatus =
+      body.fraud_status
+        ?.trim()
+        .toLowerCase() ?? "";
 
-    if (!serverKey)
-      throw new Error("MIDTRANS_SERVER_KEY belum diatur.");
+    const statusCode =
+      body.status_code?.trim() ?? "";
 
-    const expectedSignature = crypto
-      .createHash("sha512")
-      .update(order_id + status_code + gross_amount + serverKey)
-      .digest("hex");
+    const signatureKey =
+      body.signature_key?.trim() ?? "";
 
-    if (expectedSignature !== signature_key)
-      return failed("Invalid Signature", 403);
+    const grossAmount =
+      String(body.gross_amount ?? "");
 
-    console.log("Signature VALID");
-
-    // ==========================
-    // STATUS PEMBAYARAN
-    // ==========================
-
-    const paidStatus = ["settlement", "capture"];
-
-    if (!paidStatus.includes(transaction_status)) {
-
-      console.log("Status :", transaction_status);
-
-      return success("Tidak perlu diproses.");
-
+    if (!orderId || !transactionStatus) {
+      return json(
+        {
+          success: false,
+          message:
+            "Data Midtrans tidak lengkap.",
+        },
+        400
+      );
     }
 
-    // ==========================
-    // AMBIL TRANSACTION
-    // ==========================
+    // =====================================================
+    // VALIDASI SIGNATURE MIDTRANS
+    // =====================================================
 
-    const trxRef = adminDb.collection("transactions").doc(order_id);
-    const trxDoc = await trxRef.get();
+    const serverKey =
+      process.env.MIDTRANS_SERVER_KEY;
 
-if (!trxDoc.exists) {
-  console.log("Dummy notification dari Midtrans:", order_id);
+    if (!serverKey) {
+      throw new Error(
+        "MIDTRANS_SERVER_KEY belum diatur."
+      );
+    }
 
-  return success("Dummy notification diterima.");
-}
+    const expectedSignature =
+      crypto
+        .createHash("sha512")
+        .update(
+          `${orderId}${statusCode}${grossAmount}${serverKey}`
+        )
+        .digest("hex");
 
-    const trx = trxDoc.data()!;
+    if (
+      !signatureKey ||
+      signatureKey.length !==
+        expectedSignature.length ||
+      !crypto.timingSafeEqual(
+        Buffer.from(
+          signatureKey.toLowerCase()
+        ),
+        Buffer.from(
+          expectedSignature.toLowerCase()
+        )
+      )
+    ) {
+      console.error(
+        "INVALID MIDTRANS SIGNATURE:",
+        orderId
+      );
 
-    // ==========================
-    // CEK SUDAH DIPROSES
-    // ==========================
+      return json(
+        {
+          success: false,
+          message:
+            "Signature tidak valid.",
+        },
+        403
+      );
+    }
 
-    if (trx.paymentStatus === "PAID") {
-  console.log("Transaction sudah diproses.");
-  return success("Sudah diproses.");
-}
-        // ==========================
-    // FIREBASE AUTH
-    // ==========================
+    // =====================================================
+    // AMBIL TRANSAKSI
+    // =====================================================
+
+    const transactionRef =
+      db.collection("transactions")
+        .doc(orderId);
+
+    const transactionSnap =
+      await transactionRef.get();
+
+    if (!transactionSnap.exists) {
+      return json(
+        {
+          success: false,
+          message:
+            "Transaksi tidak ditemukan.",
+        },
+        404
+      );
+    }
+
+    const transactionData =
+      transactionSnap.data()!;
+
+    // =====================================================
+    // VALIDASI NOMINAL
+    // =====================================================
+
+    const expectedAmount =
+      Number(
+        transactionData.grandTotal ?? 0
+      );
+
+    const receivedAmount =
+      Number(grossAmount);
+
+    if (
+      !Number.isFinite(expectedAmount) ||
+      expectedAmount <= 0 ||
+      !Number.isFinite(receivedAmount) ||
+      Math.round(expectedAmount) !==
+        Math.round(receivedAmount)
+    ) {
+      console.error(
+        "NOMINAL TIDAK SESUAI:",
+        {
+          orderId,
+          expectedAmount,
+          receivedAmount,
+        }
+      );
+
+      return json(
+        {
+          success: false,
+          message:
+            "Nominal transaksi tidak sesuai.",
+        },
+        400
+      );
+    }
+
+    const newStatus =
+      paymentStatus(
+        transactionStatus,
+        fraudStatus
+      );
+
+    const oldStatus =
+      transactionData.paymentStatus ??
+      "PENDING";
+
+    // =====================================================
+    // WEBHOOK PAID YANG SUDAH DIPROSES
+    //
+    // PENTING:
+    // Jangan membuat membership baru,
+    // jangan menambah voucher.used,
+    // jangan membuat komisi baru.
+    // =====================================================
+
+    if (oldStatus === "PAID") {
+      await transactionRef.update({
+        lastWebhookStatus:
+          transactionStatus,
+
+        lastWebhookTransactionId:
+          body.transaction_id ?? null,
+
+        lastWebhookAt:
+          FieldValue.serverTimestamp(),
+
+        updatedAt:
+          FieldValue.serverTimestamp(),
+      });
+
+      return json({
+        success: true,
+        duplicate: true,
+        orderId,
+        paymentStatus: "PAID",
+      });
+    }
+
+    // =====================================================
+    // PENDING
+    // =====================================================
+
+    if (newStatus === "PENDING") {
+      await transactionRef.update({
+        paymentStatus: "PENDING",
+
+        status: "WAITING_PAYMENT",
+
+        paymentType:
+          body.payment_type ?? null,
+
+        transactionId:
+          body.transaction_id ?? null,
+
+        transactionStatus,
+
+        fraudStatus:
+          fraudStatus || null,
+
+        lastWebhookStatus:
+          transactionStatus,
+
+        lastWebhookAt:
+          FieldValue.serverTimestamp(),
+
+        updatedAt:
+          FieldValue.serverTimestamp(),
+      });
+
+      return json({
+        success: true,
+        orderId,
+        paymentStatus: "PENDING",
+      });
+    }
+
+    // =====================================================
+    // PEMBAYARAN GAGAL / BATAL / EXPIRED
+    // =====================================================
+
+    if (
+      [
+        "CANCELLED",
+        "EXPIRED",
+        "DENIED",
+        "FAILED",
+      ].includes(newStatus)
+    ) {
+      await transactionRef.update({
+        paymentStatus: newStatus,
+
+        status: newStatus,
+
+        paymentType:
+          body.payment_type ?? null,
+
+        transactionId:
+          body.transaction_id ?? null,
+
+        transactionStatus,
+
+        fraudStatus:
+          fraudStatus || null,
+
+        lastWebhookStatus:
+          transactionStatus,
+
+        lastWebhookAt:
+          FieldValue.serverTimestamp(),
+
+        updatedAt:
+          FieldValue.serverTimestamp(),
+      });
+
+      return json({
+        success: true,
+        orderId,
+        paymentStatus: newStatus,
+      });
+    }
+
+    // =====================================================
+    // STATUS LAIN
+    // =====================================================
+
+    if (newStatus !== "PAID") {
+      await transactionRef.update({
+        paymentStatus: newStatus,
+
+        transactionStatus,
+
+        fraudStatus:
+          fraudStatus || null,
+
+        lastWebhookStatus:
+          transactionStatus,
+
+        lastWebhookAt:
+          FieldValue.serverTimestamp(),
+
+        updatedAt:
+          FieldValue.serverTimestamp(),
+      });
+
+      return json({
+        success: true,
+        orderId,
+        paymentStatus: newStatus,
+      });
+    }
+
+    // =====================================================
+    // PAID
+    // =====================================================
+
+    const email =
+      String(
+        transactionData.email ?? ""
+      )
+        .trim()
+        .toLowerCase();
+
+    const nama =
+      String(
+        transactionData.nama ?? ""
+      ).trim();
+
+    if (!email) {
+      throw new Error(
+        "Email transaksi tidak ditemukan."
+      );
+    }
+
+    // =====================================================
+    // DURASI MEMBERSHIP
+    // =====================================================
+
+    const durationDays =
+      getDuration(transactionData);
+
+    if (durationDays <= 0) {
+      throw new Error(
+        "Durasi membership tidak valid."
+      );
+    }
+
+    // =====================================================
+    // BUAT / AMBIL FIREBASE AUTH USER
+    // =====================================================
 
     let userRecord;
 
     try {
-
-      userRecord = await auth.getUserByEmail(trx.email);
-
-      console.log("User sudah ada.");
-
-    } catch (error: any) {
-
-  if (error.code !== "auth/user-not-found")
-    throw error;
-
-  console.log("Membuat Firebase Auth...");
-
-// Pastikan password terenkripsi tersedia
-if (!trx.encryptedPassword) {
-  throw new Error("Encrypted password tidak ditemukan.");
-}
-
-// Dekripsi password
-const password = decrypt(trx.encryptedPassword);
-console.log("Password berhasil didekripsi");
-
-userRecord = await auth.createUser({
-  email: trx.email,
-  password,
-  displayName: trx.nama
-});
-
-console.log("Firebase Auth berhasil.");
-
-    }
-
-    // ==========================
-    // AMBIL PACKAGE
-    // ==========================
-
-    const packageRef = adminDb.collection("packages").doc(trx.packageId);
-    const packageDoc = await packageRef.get();
-
-    if (!packageDoc.exists)
-      throw new Error("Package tidak ditemukan.");
-
-    const packageData = packageDoc.data()!;
-
-    if (!packageData.aktif)
-      throw new Error("Package tidak aktif.");
-
-    // ==========================
-    // HITUNG MASA AKTIF
-    // ==========================
-
-    const activatedAt = new Date();
-    const expiredAt = new Date(activatedAt);
-
-    expiredAt.setDate(
-      expiredAt.getDate() + Number(packageData.durasiHari ?? 30)
-    );
-
-    // ==========================
-    // USERS
-    // ==========================
-
-    const now = new Date().toISOString();
-
-    // ==========================
-    // SETTINGS MEMBER
-    // ==========================
-
-    const memberSettingDoc = await adminDb
-      .collection("settings")
-      .doc("member")
-      .get();
-
-    const memberSetting = memberSettingDoc.data() ?? {};
-
-    await adminDb.collection("users").doc(userRecord.uid).set({
-
-      uid: userRecord.uid,
-
-      nama: trx.nama,
-      email: trx.email,
-      wa: trx.wa,
-      tglLahir: trx.tglLahir,
-
-      role: "member",
-      status: "ACTIVE",
-
-      educationLevelId: trx.educationLevelId,
-      packageId: trx.packageId,
-
-      activatedAt: activatedAt.toISOString(),
-      expiredAt: expiredAt.toISOString(),
-
-      createdAt: trx.createdAt ?? now,
-      updatedAt: now,
-
-      photoURL: null,
-
-      lastLoginAt: null,
-
-      loginCount: 0,
-
-      maxDevice: Number(memberSetting.maxDevice ?? 1),
-
-      currentDevice: [],
-
-      referralCode: null,
-
-      referredBy: trx.affiliateId ?? null
-
-    }, { merge: true });
-
-    
-    // ==========================
-    // REFERRAL
-    // ==========================
-
-    if (trx.affiliateId) {
-
-      const referralRef = adminDb.collection("referrals").doc(order_id);
-      await referralRef.set({
-
-        affiliateId: trx.affiliateId,
-
-        userId: userRecord.uid,
-
-        transactionId: trx.orderId,
-
-        createdAt: now,
-
-        status: "PAID"
-
-      });
-
-      await adminDb.collection("affiliates").doc(trx.affiliateId).update({
-
-        totalReferral: FieldValue.increment(1),
-
-        updatedAt: now
-
-      });
-
-    }
-
-    // ==========================
-    // USER LOG
-    // ==========================
-
-    await adminDb.collection("logs").doc(order_id).set({
-      action: "PAYMENT_SUCCESS",
-
-      createdAt: now,
-
-      source: "MIDTRANS",
-
-      transactionId: trx.orderId,
-
-      uid: userRecord.uid
-
-    });
-    
-    // ==========================
-    // COMMISSION
-    // ==========================
-
-    if (trx.voucherId) {
-
-      const voucherDoc = await adminDb
-        .collection("vouchers")
-        .doc(trx.voucherId)
-        .get();
-
-      if (voucherDoc.exists) {
-
-        const voucher = voucherDoc.data()!;
-
-        if (voucher.komisiAktif === true) {
-
-          let commission = 0;
-
-          if (voucher.komisiTipe === "persen") {
-
-            commission = Math.floor(
-              trx.grandTotal * Number(voucher.komisiNilai ?? 0) / 100
-            );
-
-          } else {
-
-            commission = Number(voucher.komisiNilai ?? 0);
-
-          }
-
-          if (commission > 0 && voucher.partnerUid) {
-
-            const commissionRef = adminDb.collection("commissions").doc(order_id + "_partner");
-            await commissionRef.set({
-
-              amount: commission,
-
-              createdAt: now,
-
-              partnerUid: voucher.partnerUid,
-
-              source: "voucher",
-
-              status: "PENDING",
-
-              transactionId: trx.orderId,
-
-              updatedAt: now,
-
-              userId: userRecord.uid,
-
-              voucherId: trx.voucherId
-
-            });
-
-          }
-
-        }
-
+      userRecord =
+        await auth.getUserByEmail(email);
+
+      console.log(
+        "USER FIREBASE SUDAH ADA:",
+        userRecord.uid
+      );
+    } catch (err: any) {
+      if (
+        err?.code !==
+        "auth/user-not-found"
+      ) {
+        throw err;
       }
 
-    }
+      // ===================================================
+      // PASSWORD DARI TRANSAKSI
+      // ===================================================
 
-    // ==========================
-    // AFFILIATE COMMISSION
-    // ==========================
+      const encryptedPassword =
+        transactionData.encryptedPassword;
 
-    if (trx.affiliateId) {
-
-      const affiliateSetting = await adminDb
-        .collection("settings")
-        .doc("affiliate")
-        .get();
-
-      const setting = affiliateSetting.data() ?? {};
-
-      let commission = 0;
-
-      if (setting.commissionType === "persen") {
-
-        commission = Math.floor(
-          trx.grandTotal * Number(setting.commissionValue ?? 0) / 100
+      if (
+        typeof encryptedPassword !==
+          "string" ||
+        !encryptedPassword
+      ) {
+        throw new Error(
+          "Password transaksi tidak ditemukan."
         );
-
-      } else {
-
-        commission = Number(setting.commissionValue ?? 0);
-
       }
 
-      if (commission > 0) {
+      const password =
+        decrypt(encryptedPassword);
 
-        await adminDb.collection("commissions").doc(order_id + "_affiliate").set({
+      // ===================================================
+      // CREATE FIREBASE USER
+      // ===================================================
 
-          affiliateId: trx.affiliateId,
+      userRecord =
+        await auth.createUser({
+          email,
+          password,
 
-          amount: commission,
+          displayName:
+            nama || undefined,
 
-          createdAt: now,
+          emailVerified: false,
 
-          source: "affiliate",
-
-          status: "PENDING",
-
-          transactionId: trx.orderId,
-
-          updatedAt: now,
-
-          userId: userRecord.uid
-
+          disabled: false,
         });
 
-        await adminDb.collection("affiliates")
-          .doc(trx.affiliateId)
-          .update({
-
-            pending: FieldValue.increment(commission),
-
-            totalKomisi: FieldValue.increment(commission),
-
-            updatedAt: now
-
-          });
-
-      }
-
+      console.log(
+        "USER BARU DIBUAT:",
+        userRecord.uid
+      );
     }
-        // ==========================
-    // UPDATE TRANSACTION
-    // ==========================
 
-    await trxRef.update({
+    const uid =
+      userRecord.uid;
 
-      uid: userRecord.uid,
+    // =====================================================
+    // USERS/{UID}
+    // =====================================================
 
-      paymentStatus: "PAID",
+    const userRef =
+      db.collection("users")
+        .doc(uid);
 
-      paymentType: payment_type ?? null,
+    const userSnap =
+      await userRef.get();
 
-      transactionId: transaction_id ?? null,
+    const existingUser =
+      userSnap.exists
+        ? userSnap.data() ?? {}
+        : {};
 
-      paidAt: now,
+    // =====================================================
+    // HITUNG MASA MEMBERSHIP
+    // =====================================================
 
-      updatedAt: now,
+    const now = new Date();
 
-      encryptedPassword: FieldValue.delete()
+    let membershipStart =
+      new Date(now);
 
+    const previousExpired =
+      toDate(
+        existingUser.membershipExpiredAt
+      );
+
+    if (
+      previousExpired &&
+      previousExpired > now
+    ) {
+      membershipStart =
+        previousExpired;
+    }
+
+    const membershipExpiredAt =
+      new Date(membershipStart);
+
+    membershipExpiredAt.setDate(
+      membershipExpiredAt.getDate() +
+        durationDays
+    );
+
+    // =====================================================
+    // UPDATE / BUAT USERS/{UID}
+    // =====================================================
+
+    await userRef.set(
+      {
+        uid,
+
+        nama:
+          transactionData.nama ??
+          existingUser.nama ??
+          null,
+
+        email,
+
+        wa:
+          transactionData.wa ??
+          existingUser.wa ??
+          null,
+
+        tglLahir:
+          transactionData.tglLahir ??
+          existingUser.tglLahir ??
+          null,
+
+        provinceId:
+          transactionData.provinceId ??
+          existingUser.provinceId ??
+          null,
+
+        provinceName:
+          transactionData.provinceName ??
+          existingUser.provinceName ??
+          null,
+
+        regencyId:
+          transactionData.regencyId ??
+          existingUser.regencyId ??
+          null,
+
+        regencyName:
+          transactionData.regencyName ??
+          existingUser.regencyName ??
+          null,
+
+        educationLevelId:
+          transactionData.educationLevelId ??
+          existingUser.educationLevelId ??
+          null,
+
+        educationLevelName:
+          transactionData.educationLevelName ??
+          existingUser.educationLevelName ??
+          null,
+
+        packageId:
+          transactionData.packageId ??
+          existingUser.packageId ??
+          null,
+
+        packageNama:
+          transactionData.packageNama ??
+          existingUser.packageNama ??
+          null,
+
+        packageDurasiHari:
+          durationDays,
+
+        membershipStatus:
+          "ACTIVE",
+
+        membershipStartAt:
+          membershipStart,
+
+        membershipExpiredAt,
+
+        lastOrderId:
+          orderId,
+
+        lastPaymentStatus:
+          "PAID",
+
+        createdAt:
+          existingUser.createdAt ??
+          FieldValue.serverTimestamp(),
+
+        updatedAt:
+          FieldValue.serverTimestamp(),
+      },
+      {
+        merge: true,
+      }
+    );
+
+    // =====================================================
+    // HAPUS PASSWORD TERENKRIPSI
+    // =====================================================
+
+    await transactionRef.update({
+      encryptedPassword:
+        FieldValue.delete(),
     });
 
-    console.log("=================================");
-    console.log("MIDTRANS WEBHOOK BERHASIL");
-    console.log("Order :", trx.orderId);
-    console.log("User  :", trx.email);
-    console.log("=================================");
+    // =====================================================
+    // UPDATE TRANSACTION → PAID
+    //
+    // PENTING:
+    // Kita tandai PAID sebelum memproses
+    // voucher dan affiliate.
+    //
+    // Jika webhook yang sama datang lagi,
+    // bagian atas akan langsung dianggap duplicate.
+    // =====================================================
 
-    return NextResponse.json({
+    await transactionRef.update({
+      uid,
 
+      paymentStatus:
+        "PAID",
+
+      status:
+        "PAID",
+
+      paymentType:
+        body.payment_type ?? null,
+
+      transactionId:
+        body.transaction_id ?? null,
+
+      transactionStatus,
+
+      fraudStatus:
+        fraudStatus || null,
+
+      transactionTime:
+        body.transaction_time ?? null,
+
+      settlementTime:
+        body.settlement_time ?? null,
+
+      paidAt:
+        FieldValue.serverTimestamp(),
+
+      membershipStartAt:
+        membershipStart,
+
+      membershipExpiredAt,
+
+      lastWebhookStatus:
+        transactionStatus,
+
+      lastWebhookAt:
+        FieldValue.serverTimestamp(),
+
+      updatedAt:
+        FieldValue.serverTimestamp(),
+    });
+
+    // =====================================================
+    // VOUCHER
+    //
+    // Voucher tetap diproses walaupun affiliate digunakan.
+    // Keduanya TIDAK saling meniadakan.
+    // =====================================================
+
+    const voucherId =
+      typeof transactionData.voucherId ===
+      "string"
+        ? transactionData.voucherId
+        : null;
+
+    if (voucherId) {
+      const voucherRef =
+        db.collection("vouchers")
+          .doc(voucherId);
+
+      await db.runTransaction(
+        async (tx) => {
+          const snap =
+            await tx.get(voucherRef);
+
+          if (!snap.exists) {
+            console.warn(
+              "VOUCHER TIDAK DITEMUKAN:",
+              voucherId
+            );
+
+            return;
+          }
+
+          const data =
+            snap.data() ?? {};
+
+          const used =
+            Number(
+              data.used ?? 0
+            );
+
+          tx.update(voucherRef, {
+            used:
+              Number.isFinite(used)
+                ? used + 1
+                : 1,
+
+            updatedAt:
+              FieldValue.serverTimestamp(),
+          });
+        }
+      );
+    }
+
+    // =====================================================
+    // AFFILIATE / PARTNER
+    //
+    // Affiliate dan voucher BOLEH dipakai bersamaan.
+    //
+    // Komisi dihitung berdasarkan grandTotal
+    // yang tersimpan di transaksi.
+    //
+    // grandTotal diasumsikan sudah merupakan harga
+    // setelah voucher.
+    // =====================================================
+
+    const affiliateId =
+      typeof transactionData.affiliateId ===
+      "string"
+        ? transactionData.affiliateId
+        : null;
+
+    const partnerId =
+      typeof transactionData.partnerId ===
+      "string"
+        ? transactionData.partnerId
+        : null;
+
+    const affiliateType =
+      transactionData.affiliateCommissionType ??
+      null;
+
+    const partnerType =
+      transactionData.partnerCommissionType ??
+      null;
+
+    const affiliateValue =
+      Number(
+        transactionData.affiliateCommissionValue ??
+          0
+      );
+
+    const partnerValue =
+      Number(
+        transactionData.partnerCommissionValue ??
+          0
+      );
+
+    const grandTotal =
+      Number(
+        transactionData.grandTotal ?? 0
+      );
+
+    let affiliateCommission = 0;
+    let partnerCommission = 0;
+
+    if (
+      affiliateId &&
+      affiliateType
+    ) {
+      affiliateCommission =
+        affiliateType === "percent"
+          ? Math.floor(
+              (grandTotal *
+                affiliateValue) /
+                100
+            )
+          : Math.floor(
+              affiliateValue
+            );
+    }
+
+    if (
+      partnerId &&
+      partnerType
+    ) {
+      partnerCommission =
+        partnerType === "percent"
+          ? Math.floor(
+              (grandTotal *
+                partnerValue) /
+                100
+            )
+          : Math.floor(
+              partnerValue
+            );
+    }
+
+    await transactionRef.update({
+      affiliateCommission,
+
+      partnerCommission,
+
+      commissionStatus:
+        affiliateId || partnerId
+          ? "PENDING"
+          : "NONE",
+
+      updatedAt:
+        FieldValue.serverTimestamp(),
+    });
+
+    // =====================================================
+    // LOG
+    // =====================================================
+
+    console.log(
+      "MIDTRANS PAYMENT SUCCESS:",
+      {
+        orderId,
+        uid,
+        email,
+        grandTotal,
+        voucherId,
+        affiliateId,
+        partnerId,
+        affiliateCommission,
+        partnerCommission,
+        durationDays,
+        membershipExpiredAt,
+      }
+    );
+
+    // =====================================================
+    // RESPONSE
+    // =====================================================
+
+    return json({
       success: true,
 
-      message: "Webhook berhasil diproses."
+      orderId,
 
+      uid,
+
+      paymentStatus:
+        "PAID",
+
+      membershipStatus:
+        "ACTIVE",
+
+      membershipExpiredAt:
+        membershipExpiredAt.toISOString(),
+
+      voucherUsed:
+        Boolean(voucherId),
+
+      affiliateUsed:
+        Boolean(affiliateId),
+
+      partnerUsed:
+        Boolean(partnerId),
+
+      affiliateCommission,
+
+      partnerCommission,
     });
+  } catch (error) {
+    console.error(
+      "MIDTRANS WEBHOOK ERROR:",
+      error
+    );
 
-  } catch (error: any) {
+    return json(
+      {
+        success: false,
 
-  console.error("========== WEBHOOK ERROR ==========");
-  console.error(error);
-  console.error(error?.stack);
-
-  return NextResponse.json({
-    success: false,
-    message: error?.message,
-    stack: error?.stack
-  }, {
-    status: 500
-  });
-
-}
+        message:
+          error instanceof Error
+            ? error.message
+            : "Internal Server Error",
+      },
+      500
+    );
+  }
 }
