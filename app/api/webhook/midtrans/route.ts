@@ -19,7 +19,7 @@ interface MidtransNotification {
   signature_key?: string;
 }
 
-const json = (data: any, status = 200) =>
+const json = (data: unknown, status = 200) =>
   NextResponse.json(data, { status });
 
 function paymentStatus(
@@ -55,21 +55,26 @@ function paymentStatus(
   }
 }
 
-function toDate(value: any): Date | null {
+function toDate(value: unknown): Date | null {
   if (!value) return null;
 
-  if (typeof value?.toDate === "function") {
-    return value.toDate();
+  if (
+    typeof value === "object" &&
+    value !== null &&
+    "toDate" in value &&
+    typeof (value as { toDate?: unknown }).toDate === "function"
+  ) {
+    return (value as { toDate: () => Date }).toDate();
   }
 
-  const date = new Date(value);
+  const date = new Date(value as string | number | Date);
 
   return Number.isNaN(date.getTime())
     ? null
     : date;
 }
 
-function getDuration(data: any) {
+function getDuration(data: Record<string, any>) {
   const value = Number(
     data.packageDurasiHari ?? 0
   );
@@ -79,19 +84,108 @@ function getDuration(data: any) {
     : 0;
 }
 
+/**
+ * Membaca body webhook secara aman.
+ *
+ * Kita sengaja tidak menggunakan req.json()
+ * karena sebelumnya webhook menghasilkan:
+ *
+ * "Expected property name or '}' ..."
+ *
+ * Dengan req.text() kita bisa melihat body mentah
+ * dan menangani beberapa kemungkinan format.
+ */
+async function readWebhookBody(
+  req: NextRequest
+): Promise<MidtransNotification> {
+  const rawBody = await req.text();
+
+  if (!rawBody || !rawBody.trim()) {
+    throw new Error("Body webhook kosong.");
+  }
+
+  // Hilangkan BOM jika ada
+  let cleanedBody = rawBody
+    .replace(/^\uFEFF/, "")
+    .trim();
+
+  console.log(
+    "MIDTRANS RAW BODY:",
+    cleanedBody.substring(0, 2000)
+  );
+
+  let parsed: unknown;
+
+  try {
+    parsed = JSON.parse(cleanedBody);
+  } catch (firstError) {
+    /**
+     * Beberapa sistem/proxy dapat mengirim JSON
+     * sebagai string JSON yang masih ter-encode.
+     *
+     * Contoh:
+     * "{\"order_id\":\"123\"}"
+     *
+     * Kita coba parse sekali lagi.
+     */
+    try {
+      const unwrapped = JSON.parse(
+        cleanedBody
+      );
+
+      if (typeof unwrapped === "string") {
+        parsed = JSON.parse(
+          unwrapped
+        );
+      } else {
+        throw firstError;
+      }
+    } catch {
+      console.error(
+        "MIDTRANS INVALID JSON BODY:",
+        cleanedBody.substring(0, 2000)
+      );
+
+      throw new Error(
+        "Body webhook Midtrans bukan JSON yang valid."
+      );
+    }
+  }
+
+  if (
+    typeof parsed !== "object" ||
+    parsed === null ||
+    Array.isArray(parsed)
+  ) {
+    throw new Error(
+      "Format body webhook Midtrans tidak valid."
+    );
+  }
+
+  return parsed as MidtransNotification;
+}
+
 export async function POST(req: NextRequest) {
   try {
-    const db = getAdminDb();
-
-    const { getAuth } =
-      await import("firebase-admin/auth");
-
-    const auth = getAuth();
+    // =====================================================
+    // BACA BODY TERLEBIH DAHULU
+    // =====================================================
 
     const body =
-      (await req.json()) as MidtransNotification;
+      await readWebhookBody(req);
 
-    console.log("MIDTRANS WEBHOOK:", body);
+    console.log(
+      "MIDTRANS WEBHOOK PARSED:",
+      {
+        order_id: body.order_id,
+        transaction_status:
+          body.transaction_status,
+        payment_type:
+          body.payment_type,
+        transaction_id:
+          body.transaction_id,
+      }
+    );
 
     // =====================================================
     // DATA MIDTRANS
@@ -117,9 +211,14 @@ export async function POST(req: NextRequest) {
       body.signature_key?.trim() ?? "";
 
     const grossAmount =
-      String(body.gross_amount ?? "");
+      String(
+        body.gross_amount ?? ""
+      ).trim();
 
-    if (!orderId || !transactionStatus) {
+    if (
+      !orderId ||
+      !transactionStatus
+    ) {
       return json(
         {
           success: false,
@@ -131,37 +230,88 @@ export async function POST(req: NextRequest) {
     }
 
     // =====================================================
-    // VALIDASI SIGNATURE MIDTRANS
+    // AMBIL DATABASE
+    // =====================================================
+
+    const db = getAdminDb();
+
+    // =====================================================
+    // VALIDASI SERVER KEY
     // =====================================================
 
     const serverKey =
       process.env.MIDTRANS_SERVER_KEY;
 
     if (!serverKey) {
+      console.error(
+        "MIDTRANS_SERVER_KEY belum diatur."
+      );
+
       throw new Error(
         "MIDTRANS_SERVER_KEY belum diatur."
       );
     }
 
+    // =====================================================
+    // VALIDASI SIGNATURE MIDTRANS
+    //
+    // SHA512:
+    //
+    // order_id + status_code +
+    // gross_amount + ServerKey
+    // =====================================================
+
+    const signatureString =
+      `${orderId}${statusCode}${grossAmount}${serverKey}`;
+
     const expectedSignature =
       crypto
         .createHash("sha512")
-        .update(
-          `${orderId}${statusCode}${grossAmount}${serverKey}`
-        )
+        .update(signatureString)
         .digest("hex");
 
     if (
       !signatureKey ||
       signatureKey.length !==
-        expectedSignature.length ||
+        expectedSignature.length
+    ) {
+      console.error(
+        "INVALID MIDTRANS SIGNATURE LENGTH:",
+        {
+          orderId,
+          receivedLength:
+            signatureKey.length,
+          expectedLength:
+            expectedSignature.length,
+        }
+      );
+
+      return json(
+        {
+          success: false,
+          message:
+            "Signature tidak valid.",
+        },
+        403
+      );
+    }
+
+    const receivedBuffer =
+      Buffer.from(
+        signatureKey.toLowerCase(),
+        "utf8"
+      );
+
+    const expectedBuffer =
+      Buffer.from(
+        expectedSignature.toLowerCase(),
+        "utf8"
+      );
+
+    if (
       !crypto.timingSafeEqual(
-        Buffer.from(
-          signatureKey.toLowerCase()
-        ),
-        Buffer.from(
-          expectedSignature.toLowerCase()
-        )
+        receivedBuffer,
+        expectedBuffer
       )
     ) {
       console.error(
@@ -191,18 +341,24 @@ export async function POST(req: NextRequest) {
       await transactionRef.get();
 
     if (!transactionSnap.exists) {
+      console.error(
+        "TRANSAKSI TIDAK DITEMUKAN:",
+        orderId
+      );
+
       return json(
         {
           success: false,
           message:
             "Transaksi tidak ditemukan.",
+          orderId,
         },
         404
       );
     }
 
     const transactionData =
-      transactionSnap.data()!;
+      transactionSnap.data() ?? {};
 
     // =====================================================
     // VALIDASI NOMINAL
@@ -217,9 +373,13 @@ export async function POST(req: NextRequest) {
       Number(grossAmount);
 
     if (
-      !Number.isFinite(expectedAmount) ||
+      !Number.isFinite(
+        expectedAmount
+      ) ||
       expectedAmount <= 0 ||
-      !Number.isFinite(receivedAmount) ||
+      !Number.isFinite(
+        receivedAmount
+      ) ||
       Math.round(expectedAmount) !==
         Math.round(receivedAmount)
     ) {
@@ -242,6 +402,10 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // =====================================================
+    // STATUS PEMBAYARAN
+    // =====================================================
+
     const newStatus =
       paymentStatus(
         transactionStatus,
@@ -253,15 +417,16 @@ export async function POST(req: NextRequest) {
       "PENDING";
 
     // =====================================================
-    // WEBHOOK PAID YANG SUDAH DIPROSES
+    // WEBHOOK DUPLICATE
     //
-    // PENTING:
-    // Jangan membuat membership baru,
-    // jangan menambah voucher.used,
-    // jangan membuat komisi baru.
+    // Kalau transaksi sudah PAID,
+    // jangan membuat membership / komisi /
+    // voucher baru.
     // =====================================================
 
-    if (oldStatus === "PAID") {
+    if (
+      oldStatus === "PAID"
+    ) {
       await transactionRef.update({
         lastWebhookStatus:
           transactionStatus,
@@ -288,11 +453,15 @@ export async function POST(req: NextRequest) {
     // PENDING
     // =====================================================
 
-    if (newStatus === "PENDING") {
+    if (
+      newStatus === "PENDING"
+    ) {
       await transactionRef.update({
-        paymentStatus: "PENDING",
+        paymentStatus:
+          "PENDING",
 
-        status: "WAITING_PAYMENT",
+        status:
+          "WAITING_PAYMENT",
 
         paymentType:
           body.payment_type ?? null,
@@ -318,12 +487,13 @@ export async function POST(req: NextRequest) {
       return json({
         success: true,
         orderId,
-        paymentStatus: "PENDING",
+        paymentStatus:
+          "PENDING",
       });
     }
 
     // =====================================================
-    // PEMBAYARAN GAGAL / BATAL / EXPIRED
+    // GAGAL / BATAL / EXPIRED
     // =====================================================
 
     if (
@@ -335,9 +505,11 @@ export async function POST(req: NextRequest) {
       ].includes(newStatus)
     ) {
       await transactionRef.update({
-        paymentStatus: newStatus,
+        paymentStatus:
+          newStatus,
 
-        status: newStatus,
+        status:
+          newStatus,
 
         paymentType:
           body.payment_type ?? null,
@@ -363,7 +535,8 @@ export async function POST(req: NextRequest) {
       return json({
         success: true,
         orderId,
-        paymentStatus: newStatus,
+        paymentStatus:
+          newStatus,
       });
     }
 
@@ -371,9 +544,12 @@ export async function POST(req: NextRequest) {
     // STATUS LAIN
     // =====================================================
 
-    if (newStatus !== "PAID") {
+    if (
+      newStatus !== "PAID"
+    ) {
       await transactionRef.update({
-        paymentStatus: newStatus,
+        paymentStatus:
+          newStatus,
 
         transactionStatus,
 
@@ -393,7 +569,8 @@ export async function POST(req: NextRequest) {
       return json({
         success: true,
         orderId,
-        paymentStatus: newStatus,
+        paymentStatus:
+          newStatus,
       });
     }
 
@@ -424,38 +601,54 @@ export async function POST(req: NextRequest) {
     // =====================================================
 
     const durationDays =
-      getDuration(transactionData);
+      getDuration(
+        transactionData
+      );
 
-    if (durationDays <= 0) {
+    if (
+      durationDays <= 0
+    ) {
       throw new Error(
         "Durasi membership tidak valid."
       );
     }
 
     // =====================================================
-    // BUAT / AMBIL FIREBASE AUTH USER
+    // FIREBASE AUTH
     // =====================================================
+
+    const {
+      getAuth,
+    } =
+      await import(
+        "firebase-admin/auth"
+      );
+
+    const auth =
+      getAuth();
 
     let userRecord;
 
     try {
       userRecord =
-        await auth.getUserByEmail(email);
+        await auth.getUserByEmail(
+          email
+        );
 
       console.log(
         "USER FIREBASE SUDAH ADA:",
         userRecord.uid
       );
-    } catch (err: any) {
+    } catch (error: any) {
       if (
-        err?.code !==
+        error?.code !==
         "auth/user-not-found"
       ) {
-        throw err;
+        throw error;
       }
 
       // ===================================================
-      // PASSWORD DARI TRANSAKSI
+      // PASSWORD TRANSAKSI
       // ===================================================
 
       const encryptedPassword =
@@ -472,10 +665,18 @@ export async function POST(req: NextRequest) {
       }
 
       const password =
-        decrypt(encryptedPassword);
+        decrypt(
+          encryptedPassword
+        );
+
+      if (!password) {
+        throw new Error(
+          "Password transaksi gagal didekripsi."
+        );
+      }
 
       // ===================================================
-      // CREATE FIREBASE USER
+      // BUAT USER FIREBASE
       // ===================================================
 
       userRecord =
@@ -486,9 +687,11 @@ export async function POST(req: NextRequest) {
           displayName:
             nama || undefined,
 
-          emailVerified: false,
+          emailVerified:
+            false,
 
-          disabled: false,
+          disabled:
+            false,
         });
 
       console.log(
@@ -520,7 +723,8 @@ export async function POST(req: NextRequest) {
     // HITUNG MASA MEMBERSHIP
     // =====================================================
 
-    const now = new Date();
+    const now =
+      new Date();
 
     let membershipStart =
       new Date(now);
@@ -539,7 +743,9 @@ export async function POST(req: NextRequest) {
     }
 
     const membershipExpiredAt =
-      new Date(membershipStart);
+      new Date(
+        membershipStart
+      );
 
     membershipExpiredAt.setDate(
       membershipExpiredAt.getDate() +
@@ -547,7 +753,7 @@ export async function POST(req: NextRequest) {
     );
 
     // =====================================================
-    // UPDATE / BUAT USERS/{UID}
+    // UPDATE / CREATE USERS
     // =====================================================
 
     await userRef.set(
@@ -651,13 +857,6 @@ export async function POST(req: NextRequest) {
 
     // =====================================================
     // UPDATE TRANSACTION → PAID
-    //
-    // PENTING:
-    // Kita tandai PAID sebelum memproses
-    // voucher dan affiliate.
-    //
-    // Jika webhook yang sama datang lagi,
-    // bagian atas akan langsung dianggap duplicate.
     // =====================================================
 
     await transactionRef.update({
@@ -670,10 +869,12 @@ export async function POST(req: NextRequest) {
         "PAID",
 
       paymentType:
-        body.payment_type ?? null,
+        body.payment_type ??
+        null,
 
       transactionId:
-        body.transaction_id ?? null,
+        body.transaction_id ??
+        null,
 
       transactionStatus,
 
@@ -681,10 +882,12 @@ export async function POST(req: NextRequest) {
         fraudStatus || null,
 
       transactionTime:
-        body.transaction_time ?? null,
+        body.transaction_time ??
+        null,
 
       settlementTime:
-        body.settlement_time ?? null,
+        body.settlement_time ??
+        null,
 
       paidAt:
         FieldValue.serverTimestamp(),
@@ -706,9 +909,6 @@ export async function POST(req: NextRequest) {
 
     // =====================================================
     // VOUCHER
-    //
-    // Voucher tetap diproses walaupun affiliate digunakan.
-    // Keduanya TIDAK saling meniadakan.
     // =====================================================
 
     const voucherId =
@@ -725,7 +925,9 @@ export async function POST(req: NextRequest) {
       await db.runTransaction(
         async (tx) => {
           const snap =
-            await tx.get(voucherRef);
+            await tx.get(
+              voucherRef
+            );
 
           if (!snap.exists) {
             console.warn(
@@ -744,29 +946,26 @@ export async function POST(req: NextRequest) {
               data.used ?? 0
             );
 
-          tx.update(voucherRef, {
-            used:
-              Number.isFinite(used)
-                ? used + 1
-                : 1,
+          tx.update(
+            voucherRef,
+            {
+              used:
+                Number.isFinite(
+                  used
+                )
+                  ? used + 1
+                  : 1,
 
-            updatedAt:
-              FieldValue.serverTimestamp(),
-          });
+              updatedAt:
+                FieldValue.serverTimestamp(),
+            }
+          );
         }
       );
     }
 
     // =====================================================
     // AFFILIATE / PARTNER
-    //
-    // Affiliate dan voucher BOLEH dipakai bersamaan.
-    //
-    // Komisi dihitung berdasarkan grandTotal
-    // yang tersimpan di transaksi.
-    //
-    // grandTotal diasumsikan sudah merupakan harga
-    // setelah voucher.
     // =====================================================
 
     const affiliateId =
@@ -782,39 +981,49 @@ export async function POST(req: NextRequest) {
         : null;
 
     const affiliateType =
-      transactionData.affiliateCommissionType ??
+      transactionData
+        .affiliateCommissionType ??
       null;
 
     const partnerType =
-      transactionData.partnerCommissionType ??
+      transactionData
+        .partnerCommissionType ??
       null;
 
     const affiliateValue =
       Number(
-        transactionData.affiliateCommissionValue ??
+        transactionData
+          .affiliateCommissionValue ??
           0
       );
 
     const partnerValue =
       Number(
-        transactionData.partnerCommissionValue ??
+        transactionData
+          .partnerCommissionValue ??
           0
       );
 
     const grandTotal =
       Number(
-        transactionData.grandTotal ?? 0
+        transactionData
+          .grandTotal ??
+          0
       );
 
-    let affiliateCommission = 0;
-    let partnerCommission = 0;
+    let affiliateCommission =
+      0;
+
+    let partnerCommission =
+      0;
 
     if (
       affiliateId &&
       affiliateType
     ) {
       affiliateCommission =
-        affiliateType === "percent"
+        affiliateType ===
+        "percent"
           ? Math.floor(
               (grandTotal *
                 affiliateValue) /
@@ -830,7 +1039,8 @@ export async function POST(req: NextRequest) {
       partnerType
     ) {
       partnerCommission =
-        partnerType === "percent"
+        partnerType ===
+        "percent"
           ? Math.floor(
               (grandTotal *
                 partnerValue) /
@@ -847,7 +1057,8 @@ export async function POST(req: NextRequest) {
       partnerCommission,
 
       commissionStatus:
-        affiliateId || partnerId
+        affiliateId ||
+        partnerId
           ? "PENDING"
           : "NONE",
 
