@@ -13,7 +13,7 @@
     "clsx": "^2.1.1",
     "cookies-next": "^6.1.1",
     "firebase": "^12.15.0",
-    "firebase-admin": "^14.1.0",
+    "firebase-admin": "^13.10.0",
     "katex": "^0.17.0",
     "lucide-react": "^1.23.0",
     "midtrans-client": "^1.4.3",
