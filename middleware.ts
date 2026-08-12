@@ -40,10 +40,6 @@ function getDashboardPath(
       return "/dashboard/member/perpanjang";
     }
 
-    if (canAccessAffiliate) {
-      return "/dashboard/member";
-    }
-
     return "/dashboard/member";
   }
 
@@ -57,8 +53,7 @@ function getDashboardPath(
 export async function middleware(
   req: NextRequest
 ) {
-  const { pathname } =
-    req.nextUrl;
+  const { pathname } = req.nextUrl;
 
   const session =
     req.cookies.get("__session")?.value;
@@ -68,9 +63,10 @@ export async function middleware(
   // =====================================================
 
   const isAuthPage =
-    authRoutes.some((route) =>
-      pathname === route ||
-      pathname.startsWith(`${route}/`)
+    authRoutes.some(
+      (route) =>
+        pathname === route ||
+        pathname.startsWith(`${route}/`)
     );
 
   // =====================================================
@@ -264,39 +260,7 @@ export async function middleware(
     }
 
     // ===================================================
-    // 11. AFFILIATE
-    // ===================================================
-
-    if (
-      pathname ===
-        "/dashboard/affiliate" ||
-      pathname.startsWith(
-        "/dashboard/affiliate/"
-      )
-    ) {
-      if (
-        role !== "member" ||
-        !membershipActive ||
-        !canAccessAffiliate
-      ) {
-        return NextResponse.redirect(
-          new URL(
-            getDashboardPath(
-              role,
-              membershipActive,
-              canAccessAffiliate,
-              canAccessPartner
-            ),
-            req.url
-          )
-        );
-      }
-
-      return NextResponse.next();
-    }
-
-    // ===================================================
-    // 12. MEMBER
+    // 11. MEMBER
     // ===================================================
 
     if (
@@ -354,7 +318,7 @@ export async function middleware(
     }
 
     // ===================================================
-    // 13. DASHBOARD TIDAK DIKENAL
+    // 12. DASHBOARD TIDAK DIKENAL
     // ===================================================
 
     return NextResponse.redirect(

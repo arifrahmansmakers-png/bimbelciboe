@@ -4,7 +4,7 @@ import { useUser } from "@/context/UserContext";
 import { APP_CONFIG } from "@/data/app";
 
 export default function DashboardHeader() {
-  const { user } = useUser();
+  const user = useUser();
 
   const hour = new Date().getHours();
 

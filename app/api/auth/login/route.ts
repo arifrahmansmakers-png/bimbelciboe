@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+
 import {
   getAdminAuth,
   getAdminDb,
@@ -67,6 +68,9 @@ export async function POST(req: NextRequest) {
 
     // =====================================================
     // 4. ROLE UTAMA
+    //
+    // affiliate BUKAN role.
+    // Affiliate adalah status tambahan member.
     // =====================================================
 
     const allowedRoles = [
@@ -86,8 +90,7 @@ export async function POST(req: NextRequest) {
     // =====================================================
 
     const membershipStatus =
-      typeof userData.membershipStatus ===
-      "string"
+      typeof userData.membershipStatus === "string"
         ? userData.membershipStatus
         : "EXPIRED";
 
@@ -103,8 +106,7 @@ export async function POST(req: NextRequest) {
 
     if (
       rawExpiredAt &&
-      typeof rawExpiredAt.toDate ===
-        "function"
+      typeof rawExpiredAt.toDate === "function"
     ) {
       membershipExpiredAt =
         rawExpiredAt
@@ -116,8 +118,7 @@ export async function POST(req: NextRequest) {
       membershipExpiredAt =
         rawExpiredAt.toISOString();
     } else if (
-      typeof rawExpiredAt ===
-      "string"
+      typeof rawExpiredAt === "string"
     ) {
       const parsed =
         new Date(rawExpiredAt);
@@ -147,42 +148,39 @@ export async function POST(req: NextRequest) {
 
     const membershipActive =
       role === "member" &&
-      membershipStatus ===
-        "ACTIVE" &&
+      membershipStatus === "ACTIVE" &&
       expiredDate !== null &&
       expiredDate.getTime() >=
         now.getTime();
 
     // =====================================================
     // 8. AFFILIATE
+    //
+    // Affiliate tetap MEMBER.
     // =====================================================
 
     const affiliateStatus =
-      typeof userData.affiliateStatus ===
-      "string"
+      typeof userData.affiliateStatus === "string"
         ? userData.affiliateStatus
         : "INACTIVE";
 
     const canAccessAffiliate =
       role === "member" &&
       membershipActive &&
-      affiliateStatus ===
-        "ACTIVE";
+      affiliateStatus === "ACTIVE";
 
     // =====================================================
     // 9. PARTNER
     // =====================================================
 
     const partnerStatus =
-      typeof userData.partnerStatus ===
-      "string"
+      typeof userData.partnerStatus === "string"
         ? userData.partnerStatus
         : "INACTIVE";
 
     const canAccessPartner =
       role === "partner" &&
-      partnerStatus ===
-        "ACTIVE";
+      partnerStatus === "ACTIVE";
 
     // =====================================================
     // 10. BUAT SESSION COOKIE

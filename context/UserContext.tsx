@@ -1,36 +1,39 @@
 "use client";
 
-import { createContext, useContext } from "react";
+import {
+  createContext,
+  useContext,
+  ReactNode,
+} from "react";
 
 import { CurrentUser } from "@/types/auth";
 
-interface UserContextType {
+interface UserContextValue {
   user: CurrentUser;
 }
 
 const UserContext =
-  createContext<UserContextType | null>(null);
+  createContext<UserContextValue | null>(null);
 
-interface Props {
+interface UserProviderProps {
   user: CurrentUser;
-  children: React.ReactNode;
+  children: ReactNode;
 }
 
 export function UserProvider({
   user,
   children,
-}: Props) {
+}: UserProviderProps) {
   return (
-    <UserContext.Provider
-      value={{ user }}
-    >
+    <UserContext.Provider value={{ user }}>
       {children}
     </UserContext.Provider>
   );
 }
 
 export function useUser() {
-  const context = useContext(UserContext);
+  const context =
+    useContext(UserContext);
 
   if (!context) {
     throw new Error(
@@ -38,5 +41,5 @@ export function useUser() {
     );
   }
 
-  return context;
+  return context.user;
 }

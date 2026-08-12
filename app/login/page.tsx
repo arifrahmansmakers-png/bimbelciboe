@@ -11,8 +11,8 @@ function getDashboardPath(role?: string) {
     case "admin":
       return "/dashboard/admin";
 
-    case "affiliate":
-      return "/dashboard/affiliate";
+    case "partner":
+      return "/dashboard/partner";
 
     case "member":
     default:

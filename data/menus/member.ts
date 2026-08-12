@@ -1,21 +1,15 @@
 import {
-  Home,
   BookOpen,
-  FileText,
-  ClipboardCheck,
+  Dumbbell,
+  Trophy,
   BarChart3,
-  BadgePercent,
   User,
+  Handshake,
 } from "lucide-react";
 
 import { DashboardMenu } from "@/types/menu";
 
 export const memberMenus: DashboardMenu[] = [
-  {
-    title: "Dashboard",
-    href: "/dashboard/member",
-    icon: Home,
-  },
   {
     title: "Materi",
     href: "/dashboard/member/materi",
@@ -24,12 +18,12 @@ export const memberMenus: DashboardMenu[] = [
   {
     title: "Latihan",
     href: "/dashboard/member/latihan",
-    icon: FileText,
+    icon: Dumbbell,
   },
   {
     title: "Tryout",
     href: "/dashboard/member/tryout",
-    icon: ClipboardCheck,
+    icon: Trophy,
   },
   {
     title: "Hasil",
@@ -37,13 +31,13 @@ export const memberMenus: DashboardMenu[] = [
     icon: BarChart3,
   },
   {
-    title: "Rekomendasi",
-    href: "/dashboard/member/rekomendasi",
-    icon: BadgePercent,
-  },
-  {
     title: "Profil",
     href: "/dashboard/member/profil",
     icon: User,
+  },
+  {
+    title: "Affiliate",
+    href: "/dashboard/member/affiliate",
+    icon: Handshake,
   },
 ];
