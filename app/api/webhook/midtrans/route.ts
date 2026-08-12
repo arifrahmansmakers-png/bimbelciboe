@@ -19,17 +19,19 @@ interface MidtransNotification {
   signature_key?: string;
 }
 
+type FirestoreData = Record<string, any>;
+
 const json = (data: unknown, status = 200) =>
   NextResponse.json(data, { status });
 
 /**
+ * =========================================================
  * GET
+ * =========================================================
  *
- * Health-check endpoint.
- * Berguna untuk memastikan URL webhook aktif.
+ * Health check.
  *
- * GET:
- * /api/webhook/midtrans
+ * https://bimbelciboe.com/api/webhook/midtrans
  */
 export async function GET() {
   return json({
@@ -39,6 +41,11 @@ export async function GET() {
   });
 }
 
+/**
+ * =========================================================
+ * PAYMENT STATUS
+ * =========================================================
+ */
 function paymentStatus(
   transactionStatus: string,
   fraudStatus?: string
@@ -72,52 +79,142 @@ function paymentStatus(
   }
 }
 
+/**
+ * =========================================================
+ * DATE HELPER
+ * =========================================================
+ */
 function toDate(value: unknown): Date | null {
-  if (!value) return null;
+  if (!value) {
+    return null;
+  }
 
   if (
     typeof value === "object" &&
     value !== null &&
     "toDate" in value &&
-    typeof (value as { toDate?: unknown }).toDate === "function"
+    typeof (value as { toDate?: unknown }).toDate ===
+      "function"
   ) {
-    return (
-      value as {
-        toDate: () => Date;
-      }
-    ).toDate();
+    try {
+      return (
+        value as {
+          toDate: () => Date;
+        }
+      ).toDate();
+    } catch {
+      return null;
+    }
   }
 
-  const date = new Date(value as string | number | Date);
+  const date = new Date(
+    value as string | number | Date
+  );
 
-  return Number.isNaN(date.getTime()) ? null : date;
+  return Number.isNaN(date.getTime())
+    ? null
+    : date;
 }
 
-function getDuration(data: Record<string, unknown>) {
-  const value = Number(data.packageDurasiHari ?? 0);
+/**
+ * =========================================================
+ * MEMBERSHIP DURATION
+ * =========================================================
+ */
+function getDuration(data: FirestoreData) {
+  const value = Number(
+    data.packageDurasiHari ?? 0
+  );
 
   return Number.isFinite(value) && value > 0
     ? Math.floor(value)
     : 0;
 }
 
-export async function POST(req: NextRequest) {
+/**
+ * =========================================================
+ * MIDTRANS SIGNATURE
+ * =========================================================
+ *
+ * SHA512:
+ *
+ * order_id + status_code + gross_amount + ServerKey
+ */
+function createMidtransSignature(
+  orderId: string,
+  statusCode: string,
+  grossAmount: string,
+  serverKey: string
+) {
+  return crypto
+    .createHash("sha512")
+    .update(
+      `${orderId}${statusCode}${grossAmount}${serverKey}`
+    )
+    .digest("hex");
+}
+
+/**
+ * Membandingkan signature dengan aman.
+ */
+function isValidSignature(
+  receivedSignature: string,
+  expectedSignature: string
+) {
+  if (!receivedSignature) {
+    return false;
+  }
+
+  const received =
+    receivedSignature
+      .trim()
+      .toLowerCase();
+
+  const expected =
+    expectedSignature
+      .trim()
+      .toLowerCase();
+
+  if (received.length !== expected.length) {
+    return false;
+  }
+
   try {
-    const db = getAdminDb();
+    return crypto.timingSafeEqual(
+      Buffer.from(received, "utf8"),
+      Buffer.from(expected, "utf8")
+    );
+  } catch {
+    return false;
+  }
+}
 
-    const { getAuth } =
-      await import("firebase-admin/auth");
+/**
+ * =========================================================
+ * POST WEBHOOK
+ * =========================================================
+ */
+export async function POST(req: NextRequest) {
+  const receivedAt =
+    new Date().toISOString();
 
-    const auth = getAuth();
-
-    // =====================================================
-    // BACA BODY MIDTRANS
-    // =====================================================
-
+  try {
+    /**
+     * =====================================================
+     * 1. BACA BODY
+     * =====================================================
+     *
+     * Kita sengaja membaca JSON terlebih dahulu.
+     *
+     * Jangan inisialisasi Firebase sebelum body valid karena
+     * Test Notification Midtrans hanya membutuhkan endpoint
+     * memberikan respons yang benar.
+     */
     let body: MidtransNotification;
 
     try {
-      body = (await req.json()) as MidtransNotification;
+      body =
+        (await req.json()) as MidtransNotification;
     } catch (error) {
       console.error(
         "MIDTRANS INVALID JSON:",
@@ -127,92 +224,196 @@ export async function POST(req: NextRequest) {
       return json(
         {
           success: false,
-          message: "Body request bukan JSON yang valid.",
+          message:
+            "Body request bukan JSON yang valid.",
         },
         400
       );
     }
 
     console.log(
-      "MIDTRANS WEBHOOK:",
-      body
+      "================================================="
     );
 
-    // =====================================================
-    // DATA MIDTRANS
-    // =====================================================
+    console.log(
+      "MIDTRANS WEBHOOK RECEIVED:",
+      {
+        receivedAt,
+        order_id: body.order_id ?? null,
+        transaction_status:
+          body.transaction_status ?? null,
+        payment_type:
+          body.payment_type ?? null,
+        transaction_id:
+          body.transaction_id ?? null,
+      }
+    );
 
+    /**
+     * =====================================================
+     * 2. NORMALISASI DATA
+     * =====================================================
+     */
     const orderId =
-      body.order_id?.trim() ?? "";
+      typeof body.order_id === "string"
+        ? body.order_id.trim()
+        : "";
 
     const transactionStatus =
-      body.transaction_status
-        ?.trim()
-        .toLowerCase() ?? "";
+      typeof body.transaction_status ===
+      "string"
+        ? body.transaction_status
+            .trim()
+            .toLowerCase()
+        : "";
 
     const fraudStatus =
-      body.fraud_status
-        ?.trim()
-        .toLowerCase() ?? "";
+      typeof body.fraud_status === "string"
+        ? body.fraud_status
+            .trim()
+            .toLowerCase()
+        : "";
 
     const statusCode =
-      body.status_code?.trim() ?? "";
+      typeof body.status_code === "string"
+        ? body.status_code.trim()
+        : String(
+            body.status_code ?? ""
+          ).trim();
 
     const signatureKey =
-      body.signature_key?.trim() ?? "";
+      typeof body.signature_key === "string"
+        ? body.signature_key.trim()
+        : "";
 
     const grossAmount =
-      String(body.gross_amount ?? "");
+      String(
+        body.gross_amount ?? ""
+      ).trim();
 
-    if (!orderId || !transactionStatus) {
+    /**
+     * =====================================================
+     * 3. VALIDASI DATA DASAR
+     * =====================================================
+     */
+    if (!orderId) {
+      console.error(
+        "MIDTRANS WEBHOOK: order_id kosong."
+      );
+
       return json(
         {
           success: false,
           message:
-            "Data Midtrans tidak lengkap.",
+            "order_id tidak ditemukan.",
         },
         400
       );
     }
 
-    // =====================================================
-    // VALIDASI SIGNATURE MIDTRANS
-    // =====================================================
+    if (!transactionStatus) {
+      console.error(
+        "MIDTRANS WEBHOOK: transaction_status kosong."
+      );
 
+      return json(
+        {
+          success: false,
+          message:
+            "transaction_status tidak ditemukan.",
+        },
+        400
+      );
+    }
+
+    if (!statusCode) {
+      console.error(
+        "MIDTRANS WEBHOOK: status_code kosong.",
+        orderId
+      );
+
+      return json(
+        {
+          success: false,
+          message:
+            "status_code tidak ditemukan.",
+        },
+        400
+      );
+    }
+
+    if (!grossAmount) {
+      console.error(
+        "MIDTRANS WEBHOOK: gross_amount kosong.",
+        orderId
+      );
+
+      return json(
+        {
+          success: false,
+          message:
+            "gross_amount tidak ditemukan.",
+        },
+        400
+      );
+    }
+
+    /**
+     * =====================================================
+     * 4. SERVER KEY
+     * =====================================================
+     */
     const serverKey =
       process.env.MIDTRANS_SERVER_KEY;
 
     if (!serverKey) {
-      throw new Error(
+      console.error(
         "MIDTRANS_SERVER_KEY belum diatur."
+      );
+
+      return json(
+        {
+          success: false,
+          message:
+            "MIDTRANS_SERVER_KEY belum diatur di server.",
+        },
+        500
       );
     }
 
+    /**
+     * =====================================================
+     * 5. VALIDASI SIGNATURE
+     * =====================================================
+     */
     const expectedSignature =
-      crypto
-        .createHash("sha512")
-        .update(
-          `${orderId}${statusCode}${grossAmount}${serverKey}`
-        )
-        .digest("hex");
-
-    if (
-      !signatureKey ||
-      signatureKey.length !==
-        expectedSignature.length ||
-      !crypto.timingSafeEqual(
-        Buffer.from(
-          signatureKey.toLowerCase()
-        ),
-        Buffer.from(
-          expectedSignature.toLowerCase()
-        )
-      )
-    ) {
-      console.error(
-        "INVALID MIDTRANS SIGNATURE:",
-        orderId
+      createMidtransSignature(
+        orderId,
+        statusCode,
+        grossAmount,
+        serverKey
       );
+
+    const validSignature =
+      isValidSignature(
+        signatureKey,
+        expectedSignature
+      );
+
+    if (!validSignature) {
+      console.error(
+        "================================================="
+      );
+
+      console.error(
+        "INVALID MIDTRANS SIGNATURE"
+      );
+
+      console.error({
+        orderId,
+        statusCode,
+        grossAmount,
+      });
 
       return json(
         {
@@ -224,10 +425,30 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // =====================================================
-    // AMBIL TRANSAKSI
-    // =====================================================
+    console.log(
+      "MIDTRANS SIGNATURE VALID:",
+      orderId
+    );
 
+    /**
+     * =====================================================
+     * 6. FIREBASE ADMIN
+     * =====================================================
+     */
+    const db = getAdminDb();
+
+    const { getAuth } =
+      await import(
+        "firebase-admin/auth"
+      );
+
+    const auth = getAuth();
+
+    /**
+     * =====================================================
+     * 7. CARI TRANSAKSI
+     * =====================================================
+     */
     const transactionRef =
       db.collection("transactions")
         .doc(orderId);
@@ -235,24 +456,72 @@ export async function POST(req: NextRequest) {
     const transactionSnap =
       await transactionRef.get();
 
+    /**
+     * =====================================================
+     * 8. ORDER TIDAK DITEMUKAN
+     * =====================================================
+     *
+     * INI PERUBAHAN PENTING.
+     *
+     * Sebelumnya:
+     *
+     * 404 Transaksi tidak ditemukan
+     *
+     * Sekarang:
+     *
+     * 200 Notification diterima
+     *
+     * Alasannya:
+     *
+     * Test Notification Midtrans dapat menggunakan
+     * order_id yang belum ada di database kita.
+     *
+     * Selama signature valid, berarti notification berhasil
+     * diterima dan diverifikasi.
+     *
+     * Kita tidak boleh membuat transaksi palsu.
+     * Kita juga tidak boleh membuat user/membership.
+     */
     if (!transactionSnap.exists) {
-      return json(
+      console.warn(
+        "MIDTRANS ORDER BELUM ADA DI DATABASE:",
         {
-          success: false,
-          message:
-            "Transaksi tidak ditemukan.",
-        },
-        404
+          orderId,
+          transactionStatus,
+          grossAmount,
+        }
       );
+
+      return json({
+        success: true,
+        received: true,
+        processed: false,
+        transactionFound: false,
+        orderId,
+        paymentStatus:
+          paymentStatus(
+            transactionStatus,
+            fraudStatus
+          ),
+        message:
+          "Notification diterima dan signature valid, tetapi transaksi belum ditemukan di database.",
+      });
     }
 
+    /**
+     * =====================================================
+     * 9. DATA TRANSAKSI
+     * =====================================================
+     */
     const transactionData =
-      transactionSnap.data() ?? {};
+      (transactionSnap.data() ??
+        {}) as FirestoreData;
 
-    // =====================================================
-    // VALIDASI NOMINAL
-    // =====================================================
-
+    /**
+     * =====================================================
+     * 10. VALIDASI NOMINAL
+     * =====================================================
+     */
     const expectedAmount =
       Number(
         transactionData.grandTotal ?? 0
@@ -263,13 +532,54 @@ export async function POST(req: NextRequest) {
 
     if (
       !Number.isFinite(expectedAmount) ||
-      expectedAmount <= 0 ||
-      !Number.isFinite(receivedAmount) ||
-      Math.round(expectedAmount) !==
-        Math.round(receivedAmount)
+      expectedAmount <= 0
     ) {
       console.error(
-        "NOMINAL TIDAK SESUAI:",
+        "GRAND TOTAL TRANSAKSI TIDAK VALID:",
+        {
+          orderId,
+          expectedAmount,
+        }
+      );
+
+      return json(
+        {
+          success: false,
+          message:
+            "Grand total transaksi tidak valid.",
+        },
+        400
+      );
+    }
+
+    if (
+      !Number.isFinite(receivedAmount) ||
+      receivedAmount <= 0
+    ) {
+      console.error(
+        "GROSS AMOUNT MIDTRANS TIDAK VALID:",
+        {
+          orderId,
+          receivedAmount,
+        }
+      );
+
+      return json(
+        {
+          success: false,
+          message:
+            "Gross amount Midtrans tidak valid.",
+        },
+        400
+      );
+    }
+
+    if (
+      Math.round(expectedAmount) !==
+      Math.round(receivedAmount)
+    ) {
+      console.error(
+        "NOMINAL MIDTRANS TIDAK SESUAI:",
         {
           orderId,
           expectedAmount,
@@ -287,6 +597,11 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    /**
+     * =====================================================
+     * 11. TENTUKAN STATUS
+     * =====================================================
+     */
     const newStatus =
       paymentStatus(
         transactionStatus,
@@ -294,14 +609,29 @@ export async function POST(req: NextRequest) {
       );
 
     const oldStatus =
-      transactionData.paymentStatus ??
-      "PENDING";
+      String(
+        transactionData.paymentStatus ??
+          "PENDING"
+      ).toUpperCase();
 
-    // =====================================================
-    // WEBHOOK PAID YANG SUDAH DIPROSES
-    // =====================================================
-
+    /**
+     * =====================================================
+     * 12. PAID YANG SUDAH DIPROSES
+     * =====================================================
+     *
+     * Webhook Midtrans bisa dikirim lebih dari satu kali.
+     *
+     * Jangan:
+     * - membuat membership baru
+     * - menambah voucher.used
+     * - membuat komisi baru
+     */
     if (oldStatus === "PAID") {
+      console.log(
+        "MIDTRANS DUPLICATE WEBHOOK:",
+        orderId
+      );
+
       await transactionRef.update({
         lastWebhookStatus:
           transactionStatus,
@@ -318,16 +648,20 @@ export async function POST(req: NextRequest) {
 
       return json({
         success: true,
+        received: true,
         duplicate: true,
         orderId,
         paymentStatus: "PAID",
+        message:
+          "Notification sudah pernah diproses.",
       });
     }
 
-    // =====================================================
-    // PENDING
-    // =====================================================
-
+    /**
+     * =====================================================
+     * 13. PENDING
+     * =====================================================
+     */
     if (newStatus === "PENDING") {
       await transactionRef.update({
         paymentStatus: "PENDING",
@@ -348,6 +682,9 @@ export async function POST(req: NextRequest) {
         lastWebhookStatus:
           transactionStatus,
 
+        lastWebhookTransactionId:
+          body.transaction_id ?? null,
+
         lastWebhookAt:
           FieldValue.serverTimestamp(),
 
@@ -355,17 +692,24 @@ export async function POST(req: NextRequest) {
           FieldValue.serverTimestamp(),
       });
 
+      console.log(
+        "MIDTRANS PAYMENT PENDING:",
+        orderId
+      );
+
       return json({
         success: true,
+        received: true,
         orderId,
         paymentStatus: "PENDING",
       });
     }
 
-    // =====================================================
-    // PEMBAYARAN GAGAL / BATAL / EXPIRED
-    // =====================================================
-
+    /**
+     * =====================================================
+     * 14. CANCEL / EXPIRE / DENY / FAILURE
+     * =====================================================
+     */
     if (
       [
         "CANCELLED",
@@ -393,6 +737,9 @@ export async function POST(req: NextRequest) {
         lastWebhookStatus:
           transactionStatus,
 
+        lastWebhookTransactionId:
+          body.transaction_id ?? null,
+
         lastWebhookAt:
           FieldValue.serverTimestamp(),
 
@@ -400,17 +747,27 @@ export async function POST(req: NextRequest) {
           FieldValue.serverTimestamp(),
       });
 
+      console.log(
+        "MIDTRANS PAYMENT NOT SUCCESS:",
+        {
+          orderId,
+          paymentStatus: newStatus,
+        }
+      );
+
       return json({
         success: true,
+        received: true,
         orderId,
         paymentStatus: newStatus,
       });
     }
 
-    // =====================================================
-    // STATUS LAIN
-    // =====================================================
-
+    /**
+     * =====================================================
+     * 15. STATUS LAIN
+     * =====================================================
+     */
     if (newStatus !== "PAID") {
       await transactionRef.update({
         paymentStatus: newStatus,
@@ -423,6 +780,9 @@ export async function POST(req: NextRequest) {
         lastWebhookStatus:
           transactionStatus,
 
+        lastWebhookTransactionId:
+          body.transaction_id ?? null,
+
         lastWebhookAt:
           FieldValue.serverTimestamp(),
 
@@ -432,15 +792,17 @@ export async function POST(req: NextRequest) {
 
       return json({
         success: true,
+        received: true,
         orderId,
         paymentStatus: newStatus,
       });
     }
 
-    // =====================================================
-    // PAID
-    // =====================================================
-
+    /**
+     * =====================================================
+     * 16. PAID
+     * =====================================================
+     */
     const email =
       String(
         transactionData.email ?? ""
@@ -459,10 +821,11 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // =====================================================
-    // DURASI MEMBERSHIP
-    // =====================================================
-
+    /**
+     * =====================================================
+     * 17. DURASI MEMBERSHIP
+     * =====================================================
+     */
     const durationDays =
       getDuration(transactionData);
 
@@ -472,18 +835,21 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // =====================================================
-    // BUAT / AMBIL FIREBASE AUTH USER
-    // =====================================================
-
+    /**
+     * =====================================================
+     * 18. FIREBASE AUTH USER
+     * =====================================================
+     */
     let userRecord;
 
     try {
       userRecord =
-        await auth.getUserByEmail(email);
+        await auth.getUserByEmail(
+          email
+        );
 
       console.log(
-        "USER FIREBASE SUDAH ADA:",
+        "FIREBASE USER SUDAH ADA:",
         userRecord.uid
       );
     } catch (error: unknown) {
@@ -499,10 +865,11 @@ export async function POST(req: NextRequest) {
         throw error;
       }
 
-      // ===================================================
-      // PASSWORD DARI TRANSAKSI
-      // ===================================================
-
+      /**
+       * ===================================================
+       * 19. PASSWORD TERENKRIPSI
+       * ===================================================
+       */
       const encryptedPassword =
         transactionData.encryptedPassword;
 
@@ -517,15 +884,25 @@ export async function POST(req: NextRequest) {
       }
 
       const password =
-        decrypt(encryptedPassword);
+        decrypt(
+          encryptedPassword
+        );
 
-      // ===================================================
-      // CREATE FIREBASE USER
-      // ===================================================
+      if (!password) {
+        throw new Error(
+          "Password transaksi tidak dapat didekripsi."
+        );
+      }
 
+      /**
+       * ===================================================
+       * 20. BUAT USER FIREBASE
+       * ===================================================
+       */
       userRecord =
         await auth.createUser({
           email,
+
           password,
 
           displayName:
@@ -537,7 +914,7 @@ export async function POST(req: NextRequest) {
         });
 
       console.log(
-        "USER BARU DIBUAT:",
+        "FIREBASE USER BARU DIBUAT:",
         userRecord.uid
       );
     }
@@ -545,10 +922,11 @@ export async function POST(req: NextRequest) {
     const uid =
       userRecord.uid;
 
-    // =====================================================
-    // USERS/{UID}
-    // =====================================================
-
+    /**
+     * =====================================================
+     * 21. USERS/{UID}
+     * =====================================================
+     */
     const userRef =
       db.collection("users")
         .doc(uid);
@@ -561,10 +939,11 @@ export async function POST(req: NextRequest) {
         ? userSnap.data() ?? {}
         : {};
 
-    // =====================================================
-    // HITUNG MASA MEMBERSHIP
-    // =====================================================
-
+    /**
+     * =====================================================
+     * 22. HITUNG MEMBERSHIP
+     * =====================================================
+     */
     const now = new Date();
 
     let membershipStart =
@@ -584,17 +963,20 @@ export async function POST(req: NextRequest) {
     }
 
     const membershipExpiredAt =
-      new Date(membershipStart);
+      new Date(
+        membershipStart
+      );
 
     membershipExpiredAt.setDate(
       membershipExpiredAt.getDate() +
         durationDays
     );
 
-    // =====================================================
-    // UPDATE / BUAT USERS/{UID}
-    // =====================================================
-
+    /**
+     * =====================================================
+     * 23. UPDATE USERS
+     * =====================================================
+     */
     await userRef.set(
       {
         uid,
@@ -685,19 +1067,21 @@ export async function POST(req: NextRequest) {
       }
     );
 
-    // =====================================================
-    // HAPUS PASSWORD TERENKRIPSI
-    // =====================================================
-
+    /**
+     * =====================================================
+     * 24. HAPUS PASSWORD TERENKRIPSI
+     * =====================================================
+     */
     await transactionRef.update({
       encryptedPassword:
         FieldValue.delete(),
     });
 
-    // =====================================================
-    // UPDATE TRANSACTION → PAID
-    // =====================================================
-
+    /**
+     * =====================================================
+     * 25. UPDATE TRANSACTION → PAID
+     * =====================================================
+     */
     await transactionRef.update({
       uid,
 
@@ -735,6 +1119,9 @@ export async function POST(req: NextRequest) {
       lastWebhookStatus:
         transactionStatus,
 
+      lastWebhookTransactionId:
+        body.transaction_id ?? null,
+
       lastWebhookAt:
         FieldValue.serverTimestamp(),
 
@@ -742,10 +1129,13 @@ export async function POST(req: NextRequest) {
         FieldValue.serverTimestamp(),
     });
 
-    // =====================================================
-    // VOUCHER
-    // =====================================================
-
+    /**
+     * =====================================================
+     * 26. VOUCHER
+     * =====================================================
+     *
+     * Voucher dan affiliate boleh digunakan bersamaan.
+     */
     const voucherId =
       typeof transactionData.voucherId ===
       "string"
@@ -760,7 +1150,9 @@ export async function POST(req: NextRequest) {
       await db.runTransaction(
         async (tx) => {
           const snap =
-            await tx.get(voucherRef);
+            await tx.get(
+              voucherRef
+            );
 
           if (!snap.exists) {
             console.warn(
@@ -779,23 +1171,27 @@ export async function POST(req: NextRequest) {
               data.used ?? 0
             );
 
-          tx.update(voucherRef, {
-            used:
-              Number.isFinite(used)
-                ? used + 1
-                : 1,
+          tx.update(
+            voucherRef,
+            {
+              used:
+                Number.isFinite(used)
+                  ? used + 1
+                  : 1,
 
-            updatedAt:
-              FieldValue.serverTimestamp(),
-          });
+              updatedAt:
+                FieldValue.serverTimestamp(),
+            }
+          );
         }
       );
     }
 
-    // =====================================================
-    // AFFILIATE / PARTNER
-    // =====================================================
-
+    /**
+     * =====================================================
+     * 27. AFFILIATE / PARTNER
+     * =====================================================
+     */
     const affiliateId =
       typeof transactionData.affiliateId ===
       "string"
@@ -809,31 +1205,37 @@ export async function POST(req: NextRequest) {
         : null;
 
     const affiliateType =
-      transactionData.affiliateCommissionType ??
+      transactionData
+        .affiliateCommissionType ??
       null;
 
     const partnerType =
-      transactionData.partnerCommissionType ??
+      transactionData
+        .partnerCommissionType ??
       null;
 
     const affiliateValue =
       Number(
-        transactionData.affiliateCommissionValue ??
+        transactionData
+          .affiliateCommissionValue ??
           0
       );
 
     const partnerValue =
       Number(
-        transactionData.partnerCommissionValue ??
+        transactionData
+          .partnerCommissionValue ??
           0
       );
 
     const grandTotal =
       Number(
-        transactionData.grandTotal ?? 0
+        transactionData.grandTotal ??
+          0
       );
 
     let affiliateCommission = 0;
+
     let partnerCommission = 0;
 
     if (
@@ -882,33 +1284,59 @@ export async function POST(req: NextRequest) {
         FieldValue.serverTimestamp(),
     });
 
-    // =====================================================
-    // LOG
-    // =====================================================
+    /**
+     * =====================================================
+     * 28. LOG
+     * =====================================================
+     */
+    console.log(
+      "================================================="
+    );
 
     console.log(
       "MIDTRANS PAYMENT SUCCESS:",
       {
         orderId,
+
         uid,
+
         email,
+
         grandTotal,
+
         voucherId,
+
         affiliateId,
+
         partnerId,
+
         affiliateCommission,
+
         partnerCommission,
+
         durationDays,
+
+        membershipStart,
+
         membershipExpiredAt,
       }
     );
 
-    // =====================================================
-    // RESPONSE
-    // =====================================================
+    console.log(
+      "================================================="
+    );
 
+    /**
+     * =====================================================
+     * 29. RESPONSE
+     * =====================================================
+     */
     return json({
       success: true,
+
+      received: true,
+
+      processed: true,
 
       orderId,
 
@@ -935,11 +1363,22 @@ export async function POST(req: NextRequest) {
       affiliateCommission,
 
       partnerCommission,
+
+      message:
+        "Pembayaran berhasil diproses.",
     });
-  } catch (error) {
+  } catch (error: unknown) {
+    console.error(
+      "================================================="
+    );
+
     console.error(
       "MIDTRANS WEBHOOK ERROR:",
       error
+    );
+
+    console.error(
+      "================================================="
     );
 
     return json(
