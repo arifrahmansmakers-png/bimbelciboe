@@ -1,64 +1,103 @@
 import { NextRequest, NextResponse } from "next/server";
 
-const protectedRoutes = [
-  "/dashboard",
-];
-
 const authRoutes = [
   "/login",
   "/daftar",
   "/lupa-password",
 ];
 
-function getDashboardPath(role?: string) {
-  switch (role) {
-    case "admin":
-      return "/dashboard/admin";
+function getDashboardPath(
+  role?: string,
+  membershipActive?: boolean,
+  canAccessAffiliate?: boolean,
+  canAccessPartner?: boolean
+) {
+  // ==========================================
+  // ADMIN
+  // ==========================================
 
-    case "affiliate":
-      return "/dashboard/affiliate";
-
-    case "member":
-    default:
-      return "/dashboard/member";
+  if (role === "admin") {
+    return "/dashboard/admin";
   }
+
+  // ==========================================
+  // PARTNER
+  // ==========================================
+
+  if (
+    role === "partner" &&
+    canAccessPartner
+  ) {
+    return "/dashboard/partner";
+  }
+
+  // ==========================================
+  // MEMBER
+  // ==========================================
+
+  if (role === "member") {
+    if (!membershipActive) {
+      return "/dashboard/member/perpanjang";
+    }
+
+    if (canAccessAffiliate) {
+      return "/dashboard/member";
+    }
+
+    return "/dashboard/member";
+  }
+
+  // ==========================================
+  // DEFAULT
+  // ==========================================
+
+  return "/login";
 }
 
 export async function middleware(
   req: NextRequest
 ) {
-  const { pathname } = req.nextUrl;
+  const { pathname } =
+    req.nextUrl;
 
   const session =
     req.cookies.get("__session")?.value;
 
-  const isProtected =
-    protectedRoutes.some((route) =>
-      pathname.startsWith(route)
-    );
+  // =====================================================
+  // 1. CEK HALAMAN AUTH
+  // =====================================================
 
   const isAuthPage =
     authRoutes.some((route) =>
-      pathname.startsWith(route)
+      pathname === route ||
+      pathname.startsWith(`${route}/`)
     );
 
   // =====================================================
-  // HALAMAN PUBLIK
+  // 2. CEK HALAMAN DASHBOARD
+  // =====================================================
+
+  const isDashboard =
+    pathname === "/dashboard" ||
+    pathname.startsWith("/dashboard/");
+
+  // =====================================================
+  // 3. HALAMAN PUBLIK
   // =====================================================
 
   if (
-    !isProtected &&
+    !isDashboard &&
     !isAuthPage
   ) {
     return NextResponse.next();
   }
 
   // =====================================================
-  // BELUM LOGIN
+  // 4. BELUM LOGIN
   // =====================================================
 
   if (!session) {
-    if (isProtected) {
+    if (isDashboard) {
       return NextResponse.redirect(
         new URL(
           "/login",
@@ -71,7 +110,7 @@ export async function middleware(
   }
 
   // =====================================================
-  // VERIFIKASI SESSION
+  // 5. VERIFIKASI SESSION
   // =====================================================
 
   try {
@@ -79,10 +118,13 @@ export async function middleware(
       await fetch(
         `${req.nextUrl.origin}/api/auth/verify-session`,
         {
+          method: "GET",
+
           headers: {
             Cookie:
               `__session=${session}`,
           },
+
           cache: "no-store",
         }
       );
@@ -96,36 +138,245 @@ export async function middleware(
     const result =
       await response.json();
 
-    /*
-     * Ambil role dari response
-     *
-     * Kita dukung beberapa kemungkinan
-     * bentuk response supaya tidak rapuh.
-     */
-
-    const role =
-      result?.user?.role ??
-      result?.role ??
-      "member";
+    if (
+      !result?.success ||
+      !result?.user
+    ) {
+      throw new Error(
+        "Data session tidak valid."
+      );
+    }
 
     // ===================================================
-    // SUDAH LOGIN → JANGAN KEMBALI KE HALAMAN AUTH
+    // 6. DATA USER
+    // ===================================================
+
+    const user =
+      result.user;
+
+    const role =
+      user.role ?? "member";
+
+    const membershipActive =
+      user.membershipActive === true;
+
+    const canAccessAffiliate =
+      user.canAccessAffiliate === true;
+
+    const canAccessPartner =
+      user.canAccessPartner === true;
+
+    // ===================================================
+    // 7. SUDAH LOGIN → TIDAK BOLEH KE HALAMAN AUTH
     // ===================================================
 
     if (isAuthPage) {
       return NextResponse.redirect(
         new URL(
-          getDashboardPath(role),
+          getDashboardPath(
+            role,
+            membershipActive,
+            canAccessAffiliate,
+            canAccessPartner
+          ),
           req.url
         )
       );
     }
 
-    return NextResponse.next();
+    // ===================================================
+    // 8. /dashboard
+    // ===================================================
 
-  } catch {
-    const res =
-      isProtected
+    if (
+      pathname === "/dashboard"
+    ) {
+      return NextResponse.redirect(
+        new URL(
+          getDashboardPath(
+            role,
+            membershipActive,
+            canAccessAffiliate,
+            canAccessPartner
+          ),
+          req.url
+        )
+      );
+    }
+
+    // ===================================================
+    // 9. ADMIN
+    // ===================================================
+
+    if (
+      pathname ===
+        "/dashboard/admin" ||
+      pathname.startsWith(
+        "/dashboard/admin/"
+      )
+    ) {
+      if (role !== "admin") {
+        return NextResponse.redirect(
+          new URL(
+            getDashboardPath(
+              role,
+              membershipActive,
+              canAccessAffiliate,
+              canAccessPartner
+            ),
+            req.url
+          )
+        );
+      }
+
+      return NextResponse.next();
+    }
+
+    // ===================================================
+    // 10. PARTNER
+    // ===================================================
+
+    if (
+      pathname ===
+        "/dashboard/partner" ||
+      pathname.startsWith(
+        "/dashboard/partner/"
+      )
+    ) {
+      if (
+        role !== "partner" ||
+        !canAccessPartner
+      ) {
+        return NextResponse.redirect(
+          new URL(
+            getDashboardPath(
+              role,
+              membershipActive,
+              canAccessAffiliate,
+              canAccessPartner
+            ),
+            req.url
+          )
+        );
+      }
+
+      return NextResponse.next();
+    }
+
+    // ===================================================
+    // 11. AFFILIATE
+    // ===================================================
+
+    if (
+      pathname ===
+        "/dashboard/affiliate" ||
+      pathname.startsWith(
+        "/dashboard/affiliate/"
+      )
+    ) {
+      if (
+        role !== "member" ||
+        !membershipActive ||
+        !canAccessAffiliate
+      ) {
+        return NextResponse.redirect(
+          new URL(
+            getDashboardPath(
+              role,
+              membershipActive,
+              canAccessAffiliate,
+              canAccessPartner
+            ),
+            req.url
+          )
+        );
+      }
+
+      return NextResponse.next();
+    }
+
+    // ===================================================
+    // 12. MEMBER
+    // ===================================================
+
+    if (
+      pathname ===
+        "/dashboard/member" ||
+      pathname.startsWith(
+        "/dashboard/member/"
+      )
+    ) {
+      // -----------------------------------------------
+      // MEMBER HARUS BENAR-BENAR MEMBER
+      // -----------------------------------------------
+
+      if (
+        role !== "member"
+      ) {
+        return NextResponse.redirect(
+          new URL(
+            getDashboardPath(
+              role,
+              membershipActive,
+              canAccessAffiliate,
+              canAccessPartner
+            ),
+            req.url
+          )
+        );
+      }
+
+      // -----------------------------------------------
+      // MEMBER EXPIRED
+      // -----------------------------------------------
+
+      const isRenewalPage =
+        pathname ===
+        "/dashboard/member/perpanjang";
+
+      if (
+        !membershipActive &&
+        !isRenewalPage
+      ) {
+        return NextResponse.redirect(
+          new URL(
+            "/dashboard/member/perpanjang",
+            req.url
+          )
+        );
+      }
+
+      // -----------------------------------------------
+      // MEMBER AKTIF
+      // -----------------------------------------------
+
+      return NextResponse.next();
+    }
+
+    // ===================================================
+    // 13. DASHBOARD TIDAK DIKENAL
+    // ===================================================
+
+    return NextResponse.redirect(
+      new URL(
+        getDashboardPath(
+          role,
+          membershipActive,
+          canAccessAffiliate,
+          canAccessPartner
+        ),
+        req.url
+      )
+    );
+
+  } catch (error) {
+    console.error(
+      "MIDDLEWARE AUTH ERROR:",
+      error
+    );
+
+    const response =
+      isDashboard
         ? NextResponse.redirect(
             new URL(
               "/login",
@@ -134,11 +385,11 @@ export async function middleware(
           )
         : NextResponse.next();
 
-    res.cookies.delete(
+    response.cookies.delete(
       "__session"
     );
 
-    return res;
+    return response;
   }
 }
 

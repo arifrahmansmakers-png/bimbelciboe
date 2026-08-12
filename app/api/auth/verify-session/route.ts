@@ -1,52 +1,48 @@
 import { NextRequest, NextResponse } from "next/server";
-import {
-  getAdminAuth,
-  getAdminDb,
-} from "@/lib/firebaseAdmin";
+import { getAdminAuth, getAdminDb } from "@/lib/firebaseAdmin";
 
 export const dynamic = "force-dynamic";
 
-export async function GET() {
-  return NextResponse.json({
-    success: true,
-    message: "Auth Login API",
-  });
-}
-
-export async function POST(req: NextRequest) {
+export async function GET(req: NextRequest) {
   try {
     // =====================================================
-    // 1. AMBIL ID TOKEN
+    // 1. AMBIL SESSION COOKIE
     // =====================================================
 
-    const { idToken } = await req.json();
+    const sessionCookie =
+      req.cookies.get("__session")?.value;
 
-    if (!idToken) {
+    if (!sessionCookie) {
       return NextResponse.json(
         {
           success: false,
-          message: "ID Token tidak ditemukan.",
+          message: "Session tidak ditemukan.",
         },
-        { status: 400 }
+        { status: 401 }
       );
     }
 
     // =====================================================
-    // 2. VERIFIKASI ID TOKEN FIREBASE
+    // 2. VERIFIKASI SESSION COOKIE
     // =====================================================
 
-    const decodedToken =
-      await getAdminAuth().verifyIdToken(idToken);
+    const decodedClaims =
+      await getAdminAuth().verifySessionCookie(
+        sessionCookie,
+        true
+      );
 
-    const uid = decodedToken.uid;
+    const uid =
+      decodedClaims.uid;
 
     // =====================================================
-    // 3. AMBIL DATA USER DARI FIRESTORE
+    // 3. AMBIL DATA USER FIRESTORE
     // =====================================================
 
-    const userRef = getAdminDb()
-      .collection("users")
-      .doc(uid);
+    const userRef =
+      getAdminDb()
+        .collection("users")
+        .doc(uid);
 
     const userSnap =
       await userRef.get();
@@ -66,7 +62,7 @@ export async function POST(req: NextRequest) {
       userSnap.data() ?? {};
 
     // =====================================================
-    // 4. ROLE UTAMA
+    // 4. ROLE
     // =====================================================
 
     const allowedRoles = [
@@ -77,12 +73,14 @@ export async function POST(req: NextRequest) {
 
     const role =
       typeof userData.role === "string" &&
-      allowedRoles.includes(userData.role)
+      allowedRoles.includes(
+        userData.role
+      )
         ? userData.role
         : "member";
 
     // =====================================================
-    // 5. MEMBERSHIP
+    // 5. MEMBERSHIP STATUS
     // =====================================================
 
     const membershipStatus =
@@ -95,8 +93,8 @@ export async function POST(req: NextRequest) {
     // 6. MEMBERSHIP EXPIRED AT
     // =====================================================
 
-    let membershipExpiredAt: string | null =
-      null;
+    let membershipExpiredAt:
+      string | null = null;
 
     const rawExpiredAt =
       userData.membershipExpiredAt;
@@ -106,29 +104,43 @@ export async function POST(req: NextRequest) {
       typeof rawExpiredAt.toDate ===
         "function"
     ) {
-      membershipExpiredAt =
-        rawExpiredAt
-          .toDate()
-          .toISOString();
+      const date =
+        rawExpiredAt.toDate();
+
+      if (
+        date instanceof Date &&
+        !Number.isNaN(
+          date.getTime()
+        )
+      ) {
+        membershipExpiredAt =
+          date.toISOString();
+      }
     } else if (
       rawExpiredAt instanceof Date
     ) {
-      membershipExpiredAt =
-        rawExpiredAt.toISOString();
+      if (
+        !Number.isNaN(
+          rawExpiredAt.getTime()
+        )
+      ) {
+        membershipExpiredAt =
+          rawExpiredAt.toISOString();
+      }
     } else if (
       typeof rawExpiredAt ===
       "string"
     ) {
-      const parsed =
+      const date =
         new Date(rawExpiredAt);
 
       if (
         !Number.isNaN(
-          parsed.getTime()
+          date.getTime()
         )
       ) {
         membershipExpiredAt =
-          parsed.toISOString();
+          date.toISOString();
       }
     }
 
@@ -136,7 +148,8 @@ export async function POST(req: NextRequest) {
     // 7. TENTUKAN MEMBERSHIP AKTIF
     // =====================================================
 
-    const now = new Date();
+    const now =
+      new Date();
 
     const expiredDate =
       membershipExpiredAt
@@ -150,7 +163,7 @@ export async function POST(req: NextRequest) {
       membershipStatus ===
         "ACTIVE" &&
       expiredDate !== null &&
-      expiredDate.getTime() >=
+      expiredDate.getTime() >
         now.getTime();
 
     // =====================================================
@@ -185,91 +198,46 @@ export async function POST(req: NextRequest) {
         "ACTIVE";
 
     // =====================================================
-    // 10. BUAT SESSION COOKIE
+    // 10. RESPONSE
     // =====================================================
 
-    const expiresIn =
-      1000 *
-      60 *
-      60 *
-      24 *
-      5;
+    return NextResponse.json({
+      success: true,
 
-    const sessionCookie =
-      await getAdminAuth().createSessionCookie(
-        idToken,
-        {
-          expiresIn,
-        }
-      );
+      user: {
+        uid,
 
-    // =====================================================
-    // 11. RESPONSE
-    // =====================================================
+        email:
+          userData.email ??
+          decodedClaims.email ??
+          null,
 
-    const response =
-      NextResponse.json({
-        success: true,
+        nama:
+          userData.nama ??
+          decodedClaims.name ??
+          null,
 
-        user: {
-          uid,
+        role,
 
-          email:
-            userData.email ??
-            decodedToken.email ??
-            null,
+        membershipStatus,
 
-          nama:
-            userData.nama ??
-            decodedToken.name ??
-            null,
+        membershipExpiredAt,
 
-          role,
+        membershipActive,
 
-          membershipStatus,
+        affiliateStatus,
 
-          membershipExpiredAt,
+        canAccessAffiliate,
 
-          membershipActive,
+        partnerStatus,
 
-          affiliateStatus,
-
-          canAccessAffiliate,
-
-          partnerStatus,
-
-          canAccessPartner,
-        },
-      });
-
-    // =====================================================
-    // 12. SESSION COOKIE
-    // =====================================================
-
-    response.cookies.set({
-      name: "__session",
-
-      value: sessionCookie,
-
-      httpOnly: true,
-
-      secure:
-        process.env.NODE_ENV ===
-        "production",
-
-      sameSite: "lax",
-
-      path: "/",
-
-      maxAge:
-        expiresIn / 1000,
+        canAccessPartner,
+      },
     });
-
-    return response;
 
   } catch (error: any) {
     console.error(
-      "LOGIN API ERROR:",
+      "VERIFY SESSION ERROR:",
       error
     );
 
@@ -277,12 +245,9 @@ export async function POST(req: NextRequest) {
       {
         success: false,
         message:
-          error?.message ||
-          "Login gagal.",
+          "Session tidak valid atau sudah kedaluwarsa.",
       },
-      {
-        status: 401,
-      }
+      { status: 401 }
     );
   }
 }

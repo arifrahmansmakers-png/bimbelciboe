@@ -1,33 +1,78 @@
 // lib/firebaseAdmin.ts
-import { initializeApp, getApps, cert, ServiceAccount } from 'firebase-admin/app';
-import { getFirestore } from 'firebase-admin/firestore';
 
-/**
- * Menginisialisasi Firebase Admin SDK secara aman.
- * Fungsi ini memastikan inisialisasi hanya terjadi satu kali (singleton).
- */
-export const getAdminDb = () => {
-  // 1. Cek apakah aplikasi sudah diinisialisasi untuk mencegah error saat hot-reloading
-  if (!getApps().length) {
-    const serviceAccountKey = process.env.FIREBASE_SERVICE_ACCOUNT_KEY;
+import {
+  cert,
+  getApps,
+  getApp,
+  initializeApp,
+  App,
+} from "firebase-admin/app";
 
-    if (!serviceAccountKey) {
-      throw new Error("Variabel lingkungan FIREBASE_SERVICE_ACCOUNT_KEY tidak ditemukan!");
-    }
+import {
+  getAuth,
+  Auth,
+} from "firebase-admin/auth";
 
-    try {
-      // 2. Parse JSON. Menggunakan tipe ServiceAccount memastikan struktur data sesuai.
-      const serviceAccount: ServiceAccount = JSON.parse(serviceAccountKey);
+import {
+  getFirestore,
+  Firestore,
+} from "firebase-admin/firestore";
 
-      initializeApp({
-        credential: cert(serviceAccount),
-      });
-    } catch (error) {
-      console.error("Gagal menginisialisasi Firebase Admin:", error);
-      throw new Error("Format FIREBASE_SERVICE_ACCOUNT_KEY tidak valid.");
-    }
+// =====================================================
+// FIREBASE ADMIN APP
+// =====================================================
+
+let adminApp: App;
+
+function getAdminApp(): App {
+  // Jika Firebase Admin sudah pernah diinisialisasi,
+  // gunakan instance yang sudah ada.
+  if (getApps().length > 0) {
+    return getApp();
   }
 
-  // 3. Kembalikan instance Firestore untuk digunakan di server-side
-  return getFirestore();
-};
+  const serviceAccountKey =
+    process.env.FIREBASE_SERVICE_ACCOUNT_KEY;
+
+  if (!serviceAccountKey) {
+    throw new Error(
+      "Variabel lingkungan FIREBASE_SERVICE_ACCOUNT_KEY tidak ditemukan."
+    );
+  }
+
+  try {
+    const serviceAccount =
+      JSON.parse(serviceAccountKey);
+
+    adminApp = initializeApp({
+      credential: cert(serviceAccount),
+    });
+
+    return adminApp;
+  } catch (error) {
+    console.error(
+      "Gagal menginisialisasi Firebase Admin:",
+      error
+    );
+
+    throw new Error(
+      "Format FIREBASE_SERVICE_ACCOUNT_KEY tidak valid."
+    );
+  }
+}
+
+// =====================================================
+// FIREBASE ADMIN AUTH
+// =====================================================
+
+export function getAdminAuth(): Auth {
+  return getAuth(getAdminApp());
+}
+
+// =====================================================
+// FIREBASE ADMIN FIRESTORE
+// =====================================================
+
+export function getAdminDb(): Firestore {
+  return getFirestore(getAdminApp());
+}
