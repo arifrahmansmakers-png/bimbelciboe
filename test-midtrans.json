@@ -1,0 +1,7 @@
+﻿{
+  "transaction_status": "settlement",
+  "status_code": "200",
+  "order_id": "TEST-BIMBEL-001",
+  "gross_amount": "25000.00",
+  "signature_key": "35842cd80d54bff05298970f79bf6db3536c8c191e0354fa7f39783096ffc2d5371a1388b2ebb15d66d9e4dfcb49b7ba2e7c6966bb042719e30bb39d4a50e759"
+}
