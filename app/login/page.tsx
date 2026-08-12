@@ -6,6 +6,20 @@ import { auth } from "@/lib/firebase";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 
+function getDashboardPath(role?: string) {
+  switch (role) {
+    case "admin":
+      return "/dashboard/admin";
+
+    case "affiliate":
+      return "/dashboard/affiliate";
+
+    case "member":
+    default:
+      return "/dashboard/member";
+  }
+}
+
 export default function LoginPage() {
   const router = useRouter();
 
@@ -23,44 +37,88 @@ export default function LoginPage() {
     setError("");
 
     try {
-      const credential = await signInWithEmailAndPassword(
-        auth,
-        email.trim(),
-        password
-      );
+      const credential =
+        await signInWithEmailAndPassword(
+          auth,
+          email.trim(),
+          password
+        );
 
-      const idToken = await credential.user.getIdToken();
+      const idToken =
+        await credential.user.getIdToken();
 
-      const response = await fetch("/api/auth/login", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ idToken }),
-      });
+      const response =
+        await fetch("/api/auth/login", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            idToken,
+          }),
+        });
 
-      const result = await response.json();
+      const result =
+        await response.json();
 
       if (!response.ok) {
-        throw new Error(result.message || "Login gagal.");
+        throw new Error(
+          result.message ||
+            "Login gagal."
+        );
       }
 
-      router.replace("/dashboard");
+      /*
+       * Redirect berdasarkan role.
+       *
+       * Jika API login mengembalikan:
+       *
+       * {
+       *   success: true,
+       *   user: {
+       *     role: "member"
+       *   }
+       * }
+       *
+       * maka member diarahkan ke:
+       *
+       * /dashboard/member
+       */
+
+      const role =
+        result?.user?.role ??
+        result?.role ??
+        "member";
+
+      const dashboardPath =
+        getDashboardPath(role);
+
+      router.replace(
+        dashboardPath
+      );
+
       router.refresh();
+
     } catch (err: any) {
       switch (err?.code) {
         case "auth/invalid-email":
-          setError("Format email tidak valid.");
+          setError(
+            "Format email tidak valid."
+          );
           break;
 
         case "auth/invalid-credential":
         case "auth/user-not-found":
         case "auth/wrong-password":
-          setError("Email atau password salah.");
+          setError(
+            "Email atau password salah."
+          );
           break;
 
         case "auth/user-disabled":
-          setError("Akun Anda telah dinonaktifkan.");
+          setError(
+            "Akun Anda telah dinonaktifkan."
+          );
           break;
 
         case "auth/too-many-requests":
@@ -71,7 +129,8 @@ export default function LoginPage() {
 
         default:
           setError(
-            err?.message || "Terjadi kesalahan. Silakan coba lagi."
+            err?.message ||
+              "Terjadi kesalahan. Silakan coba lagi."
           );
       }
     } finally {
@@ -99,7 +158,10 @@ export default function LoginPage() {
           </div>
         )}
 
-        <form onSubmit={handleLogin} className="space-y-5">
+        <form
+          onSubmit={handleLogin}
+          className="space-y-5"
+        >
 
           <div>
             <label className="mb-2 block text-sm text-blue-100">
@@ -111,7 +173,9 @@ export default function LoginPage() {
               autoComplete="email"
               required
               value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              onChange={(e) =>
+                setEmail(e.target.value)
+              }
               placeholder="nama@email.com"
               className="w-full rounded-2xl border border-white/15 bg-white/5 px-4 py-4 text-white outline-none transition placeholder:text-white/40 focus:border-yellow-400"
             />
@@ -124,18 +188,28 @@ export default function LoginPage() {
 
             <div className="relative">
               <input
-                type={showPassword ? "text" : "password"}
+                type={
+                  showPassword
+                    ? "text"
+                    : "password"
+                }
                 autoComplete="current-password"
                 required
                 value={password}
-                onChange={(e) => setPassword(e.target.value)}
+                onChange={(e) =>
+                  setPassword(e.target.value)
+                }
                 placeholder="Masukkan password"
                 className="w-full rounded-2xl border border-white/15 bg-white/5 px-4 py-4 pr-12 text-white outline-none transition placeholder:text-white/40 focus:border-yellow-400"
               />
 
               <button
                 type="button"
-                onClick={() => setShowPassword((prev) => !prev)}
+                onClick={() =>
+                  setShowPassword(
+                    (prev) => !prev
+                  )
+                }
                 className="absolute right-4 top-1/2 -translate-y-1/2 text-white/60 transition hover:text-white"
                 aria-label={
                   showPassword
@@ -172,6 +246,7 @@ export default function LoginPage() {
                       strokeLinejoin="round"
                       d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6z"
                     />
+
                     <circle
                       cx="12"
                       cy="12"
@@ -197,12 +272,16 @@ export default function LoginPage() {
             disabled={loading}
             className="w-full rounded-2xl bg-gradient-to-r from-yellow-400 to-yellow-500 py-4 font-bold text-[#001e38] transition hover:scale-[1.02] disabled:cursor-not-allowed disabled:opacity-60"
           >
-            {loading ? "Memproses..." : "Masuk"}
+            {loading
+              ? "Memproses..."
+              : "Masuk"}
           </button>
+
         </form>
 
         <div className="mt-8 border-t border-white/10 pt-6 text-center text-sm text-blue-100">
           Belum punya akun?{" "}
+
           <Link
             href="/daftar"
             className="font-semibold text-yellow-300 hover:text-yellow-200"
