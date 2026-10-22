@@ -6,6 +6,7 @@ import {
   Package,
   TicketPercent,
   HandCoins,
+  Handshake,
   ChartColumn,
 } from "lucide-react";
 
@@ -46,6 +47,11 @@ export const adminMenus: DashboardMenu[] = [
     title: "Affiliate",
     href: "/dashboard/admin/affiliate",
     icon: HandCoins,
+  },
+  {
+    title: "Partner",
+    href: "/dashboard/admin/partner",
+    icon: Handshake,
   },
   {
     title: "Laporan",

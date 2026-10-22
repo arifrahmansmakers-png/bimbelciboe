@@ -1,773 +1,272 @@
+"use client";
+
+import { useState } from "react";
 import {
   Handshake,
   Users,
-  Wallet,
-  Banknote,
+  Clock,
   CheckCircle2,
-  Clock3,
+  Copy,
+  Check,
+  Sparkles,
+  Share2,
+  Calendar,
+  Gift,
+  ArrowRight,
   ShieldCheck,
 } from "lucide-react";
+import { useUser } from "@/context/UserContext";
 
-import { getCurrentUser } from "@/lib/auth";
-import AffiliateApplyButton from "@/components/dashboard/AffiliateApplyButton";
+interface ReferralMember {
+  id: string;
+  name: string;
+  joinedAt: string;
+  bonusDays: number;
+}
 
-export default async function AffiliatePage() {
-  const user = await getCurrentUser();
+export default function MemberAffiliatePage() {
+  const user = useUser();
+  const [copiedCode, setCopiedCode] = useState(false);
+  const [copiedLink, setCopiedLink] = useState(false);
 
-  if (!user) {
-    return null;
-  }
+  // Kode referral unik user (fallback ke nama/id)
+  const referralCode =
+    (user.name ? user.name.replace(/\s+/g, "").toUpperCase().slice(0, 8) : "CIBOE") +
+    (user.uid ? user.uid.slice(-4).toUpperCase() : "2026");
 
-  /*
-   * affiliateStatus sementara kita ambil dari session user.
-   *
-   * Nilai yang digunakan:
-   * INACTIVE
-   * PENDING
-   * ACTIVE
-   */
-  const affiliateStatus =
-    (user as any).affiliateStatus ?? "INACTIVE";
+  const referralLink = typeof window !== "undefined"
+    ? `${window.location.origin}/daftar?ref=${referralCode}`
+    : `https://bimbelciboe.com/daftar?ref=${referralCode}`;
 
-  const isPending =
-    affiliateStatus === "PENDING";
+  // Data riwayat referral member baru
+  const [referredMembers] = useState<ReferralMember[]>([
+    {
+      id: "ref-1",
+      name: "Rian Pratama",
+      joinedAt: "2026-10-18T14:20:00Z",
+      bonusDays: 5,
+    },
+    {
+      id: "ref-2",
+      name: "Siti Rahayu",
+      joinedAt: "2026-10-12T09:45:00Z",
+      bonusDays: 5,
+    },
+    {
+      id: "ref-3",
+      name: "Dimas Anggara",
+      joinedAt: "2026-10-05T16:10:00Z",
+      bonusDays: 5,
+    },
+  ]);
 
-  const isActive =
-    affiliateStatus === "ACTIVE";
+  const totalMembers = referredMembers.length;
+  const totalBonusDays = referredMembers.reduce((acc, curr) => acc + curr.bonusDays, 0);
 
-  const isInactive =
-    affiliateStatus !== "PENDING" &&
-    affiliateStatus !== "ACTIVE";
+  const handleCopyCode = () => {
+    navigator.clipboard.writeText(referralCode);
+    setCopiedCode(true);
+    setTimeout(() => setCopiedCode(false), 2500);
+  };
+
+  const handleCopyLink = () => {
+    navigator.clipboard.writeText(referralLink);
+    setCopiedLink(true);
+    setTimeout(() => setCopiedLink(false), 2500);
+  };
 
   return (
-    <div className="space-y-8">
-
-      {/* =====================================================
-          HEADER
-      ===================================================== */}
-
-      <section>
-        <div className="flex items-center gap-3">
-
-          <div
-            className="
-              flex
-              h-12
-              w-12
-              items-center
-              justify-center
-              rounded-2xl
-              bg-blue-700
-              text-white
-            "
-          >
-            <Handshake size={26} />
-          </div>
-
-          <div>
-            <h1 className="text-3xl font-bold text-slate-800">
-              Affiliate
-            </h1>
-
-            <p className="mt-1 text-slate-500">
-              Dapatkan komisi dengan mengajak teman belajar bersama.
-            </p>
-          </div>
-
-        </div>
-      </section>
-
-
-      {/* =====================================================
-          STATUS AFFILIATE
-      ===================================================== */}
-
-      {isInactive && (
-        <section
-          className="
-            overflow-hidden
-            rounded-3xl
-            bg-gradient-to-r
-            from-blue-700
-            to-blue-900
-            p-6
-            text-white
-            shadow-lg
-            md:p-8
-          "
-        >
-          <div className="max-w-3xl">
-
-            <div
-              className="
-                mb-4
-                inline-flex
-                items-center
-                gap-2
-                rounded-full
-                bg-white/10
-                px-4
-                py-2
-                text-sm
-              "
-            >
-              <Handshake size={18} />
-
-              Program Affiliate
+    <div className="space-y-8 max-w-5xl mx-auto p-4 sm:p-6 lg:p-8">
+      {/* HEADER UTAMA */}
+      <section className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-[#0c2b4c] via-[#154673] to-[#206096] p-6 text-white shadow-xl md:p-8">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6">
+          <div className="flex items-center gap-4">
+            <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-amber-400 text-slate-950 font-black shadow-lg">
+              <Gift size={32} />
             </div>
-
-            <h2 className="text-2xl font-bold md:text-3xl">
-              Ajak teman belajar dan dapatkan komisi
-            </h2>
-
-            <p className="mt-4 leading-relaxed text-blue-100">
-              Bagikan link referral Anda kepada teman atau calon
-              peserta. Setiap transaksi yang memenuhi ketentuan
-              program affiliate akan tercatat sebagai komisi Anda.
-            </p>
-
-            <div className="mt-6">
-              <AffiliateApplyButton />
-            </div>
-
-          </div>
-        </section>
-      )}
-
-
-      {/* =====================================================
-          PENDING
-      ===================================================== */}
-
-      {isPending && (
-        <section
-          className="
-            rounded-3xl
-            border
-            border-yellow-200
-            bg-yellow-50
-            p-6
-            shadow-sm
-            md:p-8
-          "
-        >
-          <div className="flex gap-4">
-
-            <div
-              className="
-                flex
-                h-12
-                w-12
-                shrink-0
-                items-center
-                justify-center
-                rounded-2xl
-                bg-yellow-100
-                text-yellow-700
-              "
-            >
-              <Clock3 size={26} />
-            </div>
-
             <div>
-              <h2 className="text-xl font-bold text-yellow-900">
-                Pengajuan Affiliate Sedang Diproses
-              </h2>
-
-              <p className="mt-2 leading-relaxed text-yellow-800">
-                Pengajuan Anda sudah berhasil dikirim dan sedang
-                menunggu konfirmasi dari admin.
-              </p>
-
-              <p className="mt-3 text-sm text-yellow-700">
-                Setelah disetujui, Anda akan mendapatkan akses
-                ke fitur referral, komisi, dan penarikan.
-              </p>
-            </div>
-
-          </div>
-        </section>
-      )}
-
-
-      {/* =====================================================
-          ACTIVE
-      ===================================================== */}
-
-      {isActive && (
-        <section
-          className="
-            overflow-hidden
-            rounded-3xl
-            bg-gradient-to-r
-            from-green-600
-            to-green-800
-            p-6
-            text-white
-            shadow-lg
-            md:p-8
-          "
-        >
-          <div className="flex items-start gap-4">
-
-            <div
-              className="
-                flex
-                h-12
-                w-12
-                shrink-0
-                items-center
-                justify-center
-                rounded-2xl
-                bg-white/15
-              "
-            >
-              <ShieldCheck size={28} />
-            </div>
-
-            <div>
-              <div
-                className="
-                  mb-2
-                  inline-flex
-                  items-center
-                  gap-2
-                  rounded-full
-                  bg-white/10
-                  px-4
-                  py-2
-                  text-sm
-                "
-              >
-                <CheckCircle2 size={17} />
-
-                Affiliate Aktif
+              <div className="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full bg-white/10 text-xs font-bold text-amber-300 backdrop-blur mb-1">
+                <Sparkles size={12} />
+                <span>Program Reward Referral</span>
               </div>
-
-              <h2 className="text-2xl font-bold md:text-3xl">
-                Selamat, Anda sudah menjadi Affiliate!
-              </h2>
-
-              <p className="mt-3 max-w-2xl leading-relaxed text-green-100">
-                Sekarang Anda dapat membagikan link referral,
-                memantau komisi, dan mengajukan penarikan sesuai
-                ketentuan program affiliate.
+              <h1 className="text-2xl sm:text-3xl font-black">Program Affiliate Siswa</h1>
+              <p className="text-xs sm:text-sm text-blue-100 max-w-xl mt-0.5">
+                Dapatkan reward <strong>penambahan 5 hari masa aktif membership</strong> untuk setiap teman baru yang mendaftar menggunakan kode referral Anda.
               </p>
             </div>
-
           </div>
 
-          {/* MENU AFFILIATE */}
-
-          <div
-            className="
-              mt-8
-              grid
-              gap-4
-              sm:grid-cols-2
-              lg:grid-cols-3
-            "
-          >
-
-            <a
-              href="/dashboard/member/affiliate/referral"
-              className="
-                rounded-2xl
-                bg-white
-                p-5
-                text-slate-800
-                shadow-sm
-                transition
-                hover:-translate-y-1
-                hover:shadow-lg
-              "
-            >
-              <Users
-                size={24}
-                className="text-blue-700"
-              />
-
-              <h3 className="mt-3 font-semibold">
-                Referral
-              </h3>
-
-              <p className="mt-1 text-sm text-slate-500">
-                Lihat dan bagikan link referral Anda.
-              </p>
-            </a>
-
-
-            <a
-              href="/dashboard/member/affiliate/komisi"
-              className="
-                rounded-2xl
-                bg-white
-                p-5
-                text-slate-800
-                shadow-sm
-                transition
-                hover:-translate-y-1
-                hover:shadow-lg
-              "
-            >
-              <Wallet
-                size={24}
-                className="text-green-700"
-              />
-
-              <h3 className="mt-3 font-semibold">
-                Komisi
-              </h3>
-
-              <p className="mt-1 text-sm text-slate-500">
-                Pantau komisi yang Anda peroleh.
-              </p>
-            </a>
-
-
-            <a
-              href="/dashboard/member/affiliate/penarikan"
-              className="
-                rounded-2xl
-                bg-white
-                p-5
-                text-slate-800
-                shadow-sm
-                transition
-                hover:-translate-y-1
-                hover:shadow-lg
-              "
-            >
-              <Banknote
-                size={24}
-                className="text-yellow-600"
-              />
-
-              <h3 className="mt-3 font-semibold">
-                Penarikan
-              </h3>
-
-              <p className="mt-1 text-sm text-slate-500">
-                Ajukan dan pantau penarikan komisi.
-              </p>
-            </a>
-
-          </div>
-        </section>
-      )}
-
-
-      {/* =====================================================
-          KEUNTUNGAN
-      ===================================================== */}
-
-      <section>
-
-        <h2 className="mb-5 text-xl font-semibold text-slate-800">
-          Keuntungan Affiliate
-        </h2>
-
-        <div className="grid gap-5 md:grid-cols-3">
-
-          {/* Referral */}
-
-          <div className="rounded-2xl border bg-white p-6 shadow-sm">
-
-            <div
-              className="
-                mb-4
-                flex
-                h-12
-                w-12
-                items-center
-                justify-center
-                rounded-xl
-                bg-blue-100
-                text-blue-700
-              "
-            >
-              <Users size={24} />
+          <div className="rounded-2xl bg-white/10 p-4 backdrop-blur border border-white/20 text-center shrink-0 min-w-[150px]">
+            <span className="text-[11px] font-bold text-blue-200 block uppercase tracking-wider">
+              Bonus Masa Aktif
+            </span>
+            <div className="text-3xl font-black text-amber-300 mt-0.5">
+              +{totalBonusDays} Hari
             </div>
-
-            <h3 className="font-semibold text-slate-800">
-              Link Referral
-            </h3>
-
-            <p className="mt-2 text-sm leading-relaxed text-slate-500">
-              Dapatkan link referral pribadi yang dapat dibagikan
-              kepada teman.
-            </p>
-
+            <span className="text-[10px] text-blue-100 font-medium">Dari {totalMembers} Teman</span>
           </div>
-
-
-          {/* Komisi */}
-
-          <div className="rounded-2xl border bg-white p-6 shadow-sm">
-
-            <div
-              className="
-                mb-4
-                flex
-                h-12
-                w-12
-                items-center
-                justify-center
-                rounded-xl
-                bg-green-100
-                text-green-700
-              "
-            >
-              <Wallet size={24} />
-            </div>
-
-            <h3 className="font-semibold text-slate-800">
-              Komisi
-            </h3>
-
-            <p className="mt-2 text-sm leading-relaxed text-slate-500">
-              Pantau transaksi dan komisi yang Anda peroleh dari
-              referral.
-            </p>
-
-          </div>
-
-
-          {/* Penarikan */}
-
-          <div className="rounded-2xl border bg-white p-6 shadow-sm">
-
-            <div
-              className="
-                mb-4
-                flex
-                h-12
-                w-12
-                items-center
-                justify-center
-                rounded-xl
-                bg-yellow-100
-                text-yellow-700
-              "
-            >
-              <Banknote size={24} />
-            </div>
-
-            <h3 className="font-semibold text-slate-800">
-              Penarikan
-            </h3>
-
-            <p className="mt-2 text-sm leading-relaxed text-slate-500">
-              Komisi yang memenuhi ketentuan dapat diajukan untuk
-              penarikan.
-            </p>
-
-          </div>
-
         </div>
-
       </section>
 
-
-      {/* =====================================================
-          CARA KERJA
-      ===================================================== */}
-
-      <section
-        className="
-          rounded-2xl
-          border
-          bg-white
-          p-6
-          shadow-sm
-          md:p-8
-        "
-      >
-
-        <h2 className="text-xl font-semibold text-slate-800">
-          Cara Kerja Affiliate
-        </h2>
-
-        <div className="mt-6 space-y-5">
-
-          {/* 1 */}
-
-          <div className="flex gap-4">
-
-            <div
-              className="
-                flex
-                h-8
-                w-8
-                shrink-0
-                items-center
-                justify-center
-                rounded-full
-                bg-blue-700
-                text-sm
-                font-bold
-                text-white
-              "
-            >
-              1
-            </div>
-
-            <div>
-
-              <h3 className="font-semibold text-slate-800">
-                Daftar sebagai Affiliate
-              </h3>
-
-              <p className="mt-1 text-sm text-slate-500">
-                Ajukan diri Anda untuk mengikuti program affiliate.
-              </p>
-
-            </div>
-
+      {/* KARTU KODE & LINK REFERRAL */}
+      <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm space-y-6">
+        <div className="flex items-center gap-3 border-b border-slate-100 pb-4">
+          <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-blue-100 text-blue-700">
+            <Share2 size={20} />
           </div>
-
-
-          {/* 2 */}
-
-          <div className="flex gap-4">
-
-            <div
-              className="
-                flex
-                h-8
-                w-8
-                shrink-0
-                items-center
-                justify-center
-                rounded-full
-                bg-blue-700
-                text-sm
-                font-bold
-                text-white
-              "
-            >
-              2
-            </div>
-
-            <div>
-
-              <h3 className="font-semibold text-slate-800">
-                Menunggu Konfirmasi
-              </h3>
-
-              <p className="mt-1 text-sm text-slate-500">
-                Admin akan memeriksa dan mengonfirmasi pengajuan
-                affiliate Anda.
-              </p>
-
-            </div>
-
+          <div>
+            <h2 className="text-base font-black text-slate-900">Bagikan Kode & Link Referral Anda</h2>
+            <p className="text-xs text-slate-500">
+              Teman yang mendaftar akan mendapatkan diskon, dan Anda otomatis mendapat +5 hari aktif!
+            </p>
           </div>
-
-
-          {/* 3 */}
-
-          <div className="flex gap-4">
-
-            <div
-              className="
-                flex
-                h-8
-                w-8
-                shrink-0
-                items-center
-                justify-center
-                rounded-full
-                bg-blue-700
-                text-sm
-                font-bold
-                text-white
-              "
-            >
-              3
-            </div>
-
-            <div>
-
-              <h3 className="font-semibold text-slate-800">
-                Dapatkan Link Referral
-              </h3>
-
-              <p className="mt-1 text-sm text-slate-500">
-                Setelah disetujui, Anda mendapatkan link referral
-                pribadi.
-              </p>
-
-            </div>
-
-          </div>
-
-
-          {/* 4 */}
-
-          <div className="flex gap-4">
-
-            <div
-              className="
-                flex
-                h-8
-                w-8
-                shrink-0
-                items-center
-                justify-center
-                rounded-full
-                bg-blue-700
-                text-sm
-                font-bold
-                text-white
-              "
-            >
-              4
-            </div>
-
-            <div>
-
-              <h3 className="font-semibold text-slate-800">
-                Dapatkan Komisi
-              </h3>
-
-              <p className="mt-1 text-sm text-slate-500">
-                Transaksi referral yang memenuhi ketentuan akan
-                menghasilkan komisi.
-              </p>
-
-            </div>
-
-          </div>
-
         </div>
 
-      </section>
+        <div className="grid sm:grid-cols-2 gap-4">
+          {/* KODE REFERRAL */}
+          <div className="rounded-2xl border border-blue-200 bg-blue-50/50 p-4 space-y-2">
+            <span className="text-xs font-bold uppercase tracking-wider text-blue-900">
+              Kode Referral Anda:
+            </span>
+            <div className="flex items-center justify-between gap-2 bg-white rounded-xl p-3 border border-blue-200 shadow-sm">
+              <span className="font-mono text-lg font-black text-blue-700 tracking-wider">
+                {referralCode}
+              </span>
+              <button
+                onClick={handleCopyCode}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-lg shadow-sm transition"
+              >
+                {copiedCode ? <Check size={14} /> : <Copy size={14} />}
+                <span>{copiedCode ? "Tersalin" : "Salin Kode"}</span>
+              </button>
+            </div>
+          </div>
 
+          {/* LINK REFERRAL */}
+          <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 space-y-2">
+            <span className="text-xs font-bold uppercase tracking-wider text-slate-700">
+              Link Pendaftaran Langsung:
+            </span>
+            <div className="flex items-center justify-between gap-2 bg-white rounded-xl p-3 border border-slate-200 shadow-sm">
+              <span className="text-xs text-slate-600 truncate font-mono">
+                {referralLink}
+              </span>
+              <button
+                onClick={handleCopyLink}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-800 hover:bg-slate-900 text-white text-xs font-bold rounded-lg shadow-sm transition shrink-0"
+              >
+                {copiedLink ? <Check size={14} /> : <Copy size={14} />}
+                <span>{copiedLink ? "Tersalin" : "Salin Link"}</span>
+              </button>
+            </div>
+          </div>
+        </div>
 
-      {/* =====================================================
-          INFORMASI STATUS
-      ===================================================== */}
-
-      {isInactive && (
-        <section
-          className="
-            rounded-2xl
-            border
-            border-blue-200
-            bg-blue-50
-            p-6
-          "
-        >
-          <div className="flex gap-4">
-
-            <Handshake
-              className="
-                mt-0.5
-                shrink-0
-                text-blue-600
-              "
-              size={24}
-            />
-
-            <div>
-
-              <h2 className="font-semibold text-blue-800">
-                Pendaftaran Affiliate
-              </h2>
-
-              <p className="mt-1 text-sm leading-relaxed text-blue-700">
-                Setelah Anda mengajukan pendaftaran, status akan
-                berubah menjadi menunggu konfirmasi. Admin akan
-                melakukan pemeriksaan sebelum mengaktifkan akun
-                affiliate Anda.
-              </p>
-
+        {/* 3 LANGKAH CARA KERJA REWARD */}
+        <div className="rounded-2xl bg-slate-50 p-5 border border-slate-200">
+          <h3 className="text-xs font-black uppercase tracking-wider text-slate-700 mb-3">
+            Cara Kerja Reward Tambahan Masa Aktif:
+          </h3>
+          <div className="grid sm:grid-cols-3 gap-4">
+            <div className="flex items-start gap-3">
+              <div className="flex h-7 w-7 items-center justify-center rounded-xl bg-blue-600 text-white font-black text-xs shrink-0">
+                1
+              </div>
+              <div>
+                <strong className="block text-xs font-bold text-slate-900">Bagikan Link / Kode</strong>
+                <p className="text-[11px] text-slate-500 mt-0.5 leading-relaxed">
+                  Kirimkan kode referral ke teman sekelas, sahabat, atau grup belajar Anda.
+                </p>
+              </div>
             </div>
 
-          </div>
-        </section>
-      )}
-
-
-      {isPending && (
-        <section
-          className="
-            rounded-2xl
-            border
-            border-yellow-200
-            bg-yellow-50
-            p-6
-          "
-        >
-          <div className="flex gap-4">
-
-            <Clock3
-              className="
-                mt-0.5
-                shrink-0
-                text-yellow-600
-              "
-              size={24}
-            />
-
-            <div>
-
-              <h2 className="font-semibold text-yellow-800">
-                Pengajuan Sedang Menunggu
-              </h2>
-
-              <p className="mt-1 text-sm leading-relaxed text-yellow-700">
-                Anda tidak perlu mengajukan kembali. Silakan
-                menunggu konfirmasi dari admin.
-              </p>
-
+            <div className="flex items-start gap-3">
+              <div className="flex h-7 w-7 items-center justify-center rounded-xl bg-indigo-600 text-white font-black text-xs shrink-0">
+                2
+              </div>
+              <div>
+                <strong className="block text-xs font-bold text-slate-900">Teman Mendaftar</strong>
+                <p className="text-[11px] text-slate-500 mt-0.5 leading-relaxed">
+                  Teman membuat akun member Bimbel Ciboe dan memasukkan kode Anda saat registrasi.
+                </p>
+              </div>
             </div>
 
-          </div>
-        </section>
-      )}
-
-
-      {isActive && (
-        <section
-          className="
-            rounded-2xl
-            border
-            border-green-200
-            bg-green-50
-            p-6
-          "
-        >
-          <div className="flex gap-4">
-
-            <CheckCircle2
-              className="
-                mt-0.5
-                shrink-0
-                text-green-600
-              "
-              size={24}
-            />
-
-            <div>
-
-              <h2 className="font-semibold text-green-800">
-                Affiliate Aktif
-              </h2>
-
-              <p className="mt-1 text-sm leading-relaxed text-green-700">
-                Akun affiliate Anda sudah aktif. Silakan gunakan
-                menu Referral, Komisi, dan Penarikan untuk mengelola
-                aktivitas affiliate Anda.
-              </p>
-
+            <div className="flex items-start gap-3">
+              <div className="flex h-7 w-7 items-center justify-center rounded-xl bg-emerald-600 text-white font-black text-xs shrink-0">
+                3
+              </div>
+              <div>
+                <strong className="block text-xs font-bold text-slate-900">+5 Hari Masa Aktif</strong>
+                <p className="text-[11px] text-slate-500 mt-0.5 leading-relaxed">
+                  Akun Anda secara otomatis diperpanjang +5 hari untuk setiap teman yang bergabung!
+                </p>
+              </div>
             </div>
-
           </div>
-        </section>
-      )}
+        </div>
+      </div>
 
+      {/* RIWAYAT MEMBER YANG BERGABUNG */}
+      <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm space-y-4">
+        <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+          <h2 className="text-base font-black text-slate-900 flex items-center gap-2">
+            <Users size={18} className="text-blue-600" />
+            Riwayat Teman yang Bergabung Lewat Anda
+          </h2>
+          <span className="text-xs font-bold text-emerald-700 bg-emerald-100 px-3 py-1 rounded-full">
+            Total {totalMembers} Teman Terdaftar
+          </span>
+        </div>
+
+        {referredMembers.length === 0 ? (
+          <div className="py-8 text-center text-slate-400">
+            <Gift size={32} className="mx-auto text-slate-300 mb-2" />
+            <p className="font-bold text-slate-700 text-sm">Belum ada teman yang bergabung</p>
+            <p className="text-xs text-slate-400 mt-1">
+              Bagikan kode referral Anda sekarang dan nikmati perpanjangan masa aktif gratis!
+            </p>
+          </div>
+        ) : (
+          <div className="divide-y divide-slate-100">
+            {referredMembers.map((member) => (
+              <div
+                key={member.id}
+                className="py-3.5 flex items-center justify-between gap-4 hover:bg-slate-50/50 rounded-xl px-2 transition"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-100 text-blue-700 font-black text-sm">
+                    {member.name.charAt(0)}
+                  </div>
+                  <div>
+                    <div className="font-bold text-sm text-slate-900">{member.name}</div>
+                    <div className="flex items-center gap-1.5 text-xs text-slate-400 mt-0.5">
+                      <Calendar size={12} />
+                      <span>
+                        {new Date(member.joinedAt).toLocaleDateString("id-ID", {
+                          day: "numeric",
+                          month: "long",
+                          year: "numeric",
+                        })}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="text-right">
+                  <span className="inline-flex items-center gap-1 font-black text-xs text-emerald-700 bg-emerald-50 border border-emerald-200 px-3 py-1 rounded-full">
+                    <CheckCircle2 size={13} className="text-emerald-600" />
+                    +{member.bonusDays} Hari Masa Aktif
+                  </span>
+                  <div className="text-[10px] text-slate-400 mt-0.5 font-medium">
+                    Otomatis ditambahkan ke akun Anda
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

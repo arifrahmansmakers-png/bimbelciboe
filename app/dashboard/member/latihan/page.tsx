@@ -27,13 +27,29 @@ import {
   TKAPaket,
 } from "@/data/tka_member";
 import { getCustomPaketsBySubject } from "@/data/tka_member/store";
+import { useUser } from "@/context/UserContext";
 
 export default function MemberLatihanPage() {
-  // Jenjang (SD, SMP, SMA)
-  const [selectedJenjang, setSelectedJenjang] = useState<"SD" | "SMP" | "SMA">("SD");
+  const user = useUser();
+
+  const getRegisteredJenjang = (): "SD" | "SMP" | "SMA" => {
+    const raw = (user?.educationLevelId || "").toUpperCase();
+    if (raw.includes("SMA") || raw.includes("SMK") || raw.includes("MA")) return "SMA";
+    if (raw.includes("SMP") || raw.includes("MTS")) return "SMP";
+    return "SD";
+  };
+
+  const registeredJenjang = getRegisteredJenjang();
+
+  // Jenjang terpilih (default: tingkatan siswa, dan siswa bebas memilih jenjang lain)
+  const [selectedJenjang, setSelectedJenjang] = useState<"SD" | "SMP" | "SMA">(registeredJenjang);
 
   // Mapel (berdasarkan jenjang)
   const [selectedSubjectId, setSelectedSubjectId] = useState<string>("sd-matematika");
+
+  useEffect(() => {
+    setSelectedJenjang(getRegisteredJenjang());
+  }, [user.educationLevelId]);
 
   // Progress member dari localStorage
   const [progressMap, setProgressMap] = useState<Record<string, MemberProgressItem>>({});
@@ -134,14 +150,27 @@ export default function MemberLatihanPage() {
                 <button
                   key={j.id}
                   onClick={() => setSelectedJenjang(j.id)}
-                  className={`flex items-center justify-center gap-2.5 py-3 px-4 rounded-2xl border font-black text-sm transition ${
+                  className={`flex flex-col sm:flex-row items-center justify-center gap-2 py-3 px-4 rounded-2xl border font-black text-sm transition ${
                     isSelected
                       ? "border-blue-600 bg-blue-600 text-white shadow-md shadow-blue-600/20"
                       : "border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100"
                   }`}
                 >
-                  <GraduationCap size={18} />
-                  <span>{j.name}</span>
+                  <div className="flex items-center gap-1.5">
+                    <GraduationCap size={18} />
+                    <span>{j.name}</span>
+                  </div>
+                  {registeredJenjang === j.id && (
+                    <span
+                      className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                        isSelected
+                          ? "bg-amber-400 text-slate-950"
+                          : "bg-blue-100 text-blue-800 border border-blue-200"
+                      }`}
+                    >
+                      Tingkat Anda
+                    </span>
+                  )}
                 </button>
               );
             })}
