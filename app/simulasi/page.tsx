@@ -77,7 +77,7 @@ export default function SimulasiPage() {
               {daftarMapel.map((mapel) => (
                 <Link 
                   key={mapel} 
-                  href={`/simulasi/ujian?jenjang=${jenjang}&mapel=${mapel}`}
+                  href={`/simulasi/ujian?jenjang=${encodeURIComponent(jenjang)}&mapel=${encodeURIComponent(mapel)}`}
                   // Kartu semi-transparan dengan hover effect cerah
                   className="group block p-6 bg-white/5 border border-white/10 rounded-3xl transition-all duration-300 hover:bg-white/10 hover:border-blue-400 hover:shadow-[0_4px_12px_rgba(59,130,246,0.3)]"
                 >
