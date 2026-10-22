@@ -1,6 +1,7 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // Biarkan kosong atau tambahkan konfigurasi yang Anda butuhkan nanti
+  output: 'standalone',
+  allowedDevOrigins: ['*.run.app', 'localhost:3000'],
 };
 
 module.exports = nextConfig;

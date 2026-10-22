@@ -2,6 +2,8 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 
+import Image from 'next/image';
+
 export default function Navbar() {
   const pathname = usePathname();
 
@@ -9,9 +11,14 @@ export default function Navbar() {
   if (pathname.includes('/simulasi/ujian')) return null;
 
   return (
-    <nav className="p-4 bg-white border-b flex justify-between items-center">
-      <Link href="/" className="font-bold text-blue-900 text-lg">
-        Bimbel CIBOE
+    <nav className="p-4 bg-white border-b flex justify-between items-center shadow-xs">
+      <Link href="/" className="flex items-center gap-2.5 group">
+        <div className="relative h-9 w-9 overflow-hidden rounded-xl border border-slate-200">
+          <Image src="/logo.png" alt="Ciboe Edu" fill sizes="36px" className="object-cover" />
+        </div>
+        <span className="font-black text-slate-900 text-lg">
+          Ciboe<span className="text-blue-600">Edu</span>
+        </span>
       </Link>
       
       {/* Tombol Kembali (hanya muncul jika bukan di beranda) */}

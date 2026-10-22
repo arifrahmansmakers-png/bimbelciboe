@@ -26,25 +26,33 @@ const failed = (
 // =====================================================
 
 async function verifyAdmin(req: NextRequest) {
-  const authHeader =
-    req.headers.get("authorization");
+  let token = "";
+  const authHeader = req.headers.get("authorization");
+  if (authHeader?.startsWith("Bearer ")) {
+    token = authHeader.substring(7).trim();
+  } else {
+    token = req.cookies.get("__session")?.value || "";
+  }
 
-  if (!authHeader?.startsWith("Bearer ")) {
+  if (!token) {
     return null;
   }
 
-  const token =
-    authHeader.substring(7);
-
   try {
-    const decoded =
-      await getAuth().verifyIdToken(token);
+    let uid = "";
+    try {
+      const decoded = await getAuth().verifyIdToken(token);
+      uid = decoded.uid;
+    } catch {
+      const decodedSession = await getAuth().verifySessionCookie(token, true);
+      uid = decodedSession.uid;
+    }
 
     const db = getAdminDb();
 
     const userDoc = await db
       .collection("users")
-      .doc(decoded.uid)
+      .doc(uid)
       .get();
 
     if (!userDoc.exists) {
@@ -59,7 +67,7 @@ async function verifyAdmin(req: NextRequest) {
     }
 
     return {
-      uid: decoded.uid,
+      uid,
       nama:
         user.nama ??
         "Administrator",

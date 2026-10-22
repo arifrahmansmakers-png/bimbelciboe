@@ -41,8 +41,22 @@ function getAdminApp(): App {
   }
 
   try {
-    const serviceAccount =
-      JSON.parse(serviceAccountKey);
+    const rawKey = serviceAccountKey.trim();
+    const cleanedKey =
+      (rawKey.startsWith("'") && rawKey.endsWith("'")) ||
+      (rawKey.startsWith('"') && rawKey.endsWith('"'))
+        ? rawKey.slice(1, -1)
+        : rawKey;
+
+    const serviceAccount = JSON.parse(cleanedKey);
+
+    if (
+      serviceAccount.private_key &&
+      typeof serviceAccount.private_key === "string"
+    ) {
+      serviceAccount.private_key =
+        serviceAccount.private_key.replace(/\\n/g, "\n");
+    }
 
     adminApp = initializeApp({
       credential: cert(serviceAccount),

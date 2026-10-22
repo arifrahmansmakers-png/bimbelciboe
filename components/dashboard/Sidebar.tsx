@@ -2,6 +2,7 @@
 
 import MenuItem from "./MenuItem";
 import { DashboardMenu } from "@/types/menu";
+import Image from "next/image";
 
 interface Props {
   title: string;
@@ -84,24 +85,14 @@ export default function Sidebar({
 
           {/* Logo */}
 
-          <div
-            className="
-              mb-4
-              flex
-              h-12
-              w-12
-              items-center
-              justify-center
-              rounded-2xl
-              bg-white
-              text-xl
-              font-black
-              text-blue-700
-              shadow-lg
-              shadow-blue-900/20
-            "
-          >
-            BC
+          <div className="relative mb-4 h-12 w-12 overflow-hidden rounded-2xl border border-white/20 bg-white shadow-lg shadow-blue-900/20">
+            <Image
+              src="/logo.png"
+              alt="Ciboe Edu"
+              fill
+              sizes="48px"
+              className="object-cover"
+            />
           </div>
 
           {/* Title */}

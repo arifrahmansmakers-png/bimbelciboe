@@ -5,6 +5,8 @@ import { signInWithEmailAndPassword } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import Image from "next/image";
+import { Eye, EyeOff } from "lucide-react";
 
 function getDashboardPath(role?: string) {
   switch (role) {
@@ -143,12 +145,18 @@ export default function LoginPage() {
       <div className="w-full max-w-md rounded-3xl bg-white/10 p-8 shadow-2xl backdrop-blur">
 
         <div className="mb-8 text-center">
-          <h1 className="text-3xl font-bold text-white">
+          <Link href="/" className="inline-flex items-center gap-3 mb-4 group">
+            <div className="relative h-12 w-12 overflow-hidden rounded-2xl border border-white/20 bg-white shadow-lg transition group-hover:scale-105">
+              <Image src="/logo.png" alt="Ciboe Edu" fill sizes="48px" className="object-cover" priority />
+            </div>
+          </Link>
+
+          <h1 className="text-3xl font-black text-white">
             Login Member
           </h1>
 
-          <p className="mt-2 text-sm text-blue-100">
-            Masuk untuk melanjutkan belajar.
+          <p className="mt-1 text-sm text-blue-100">
+            Masuk untuk melanjutkan belajar di Ciboe Edu.
           </p>
         </div>
 
@@ -164,7 +172,7 @@ export default function LoginPage() {
         >
 
           <div>
-            <label className="mb-2 block text-sm text-blue-100">
+            <label className="mb-2 block text-sm font-medium text-blue-100">
               Email
             </label>
 
@@ -182,80 +190,96 @@ export default function LoginPage() {
           </div>
 
           <div>
-            <label className="mb-2 block text-sm text-blue-100">
-              Password
-            </label>
+            <div className="mb-2 flex items-center justify-between">
+              <label className="block text-sm font-medium text-blue-100">
+                Password
+              </label>
+              <button
+                type="button"
+                onClick={() => setShowPassword((prev) => !prev)}
+                className="text-xs font-bold text-yellow-300 hover:text-yellow-200 transition underline cursor-pointer"
+              >
+                {showPassword ? "Sembunyikan" : "Lihat Password"}
+              </button>
+            </div>
 
-            <div className="relative">
-              <input
-                type={
-                  showPassword
-                    ? "text"
-                    : "password"
-                }
-                autoComplete="current-password"
-                required
-                value={password}
-                onChange={(e) =>
-                  setPassword(e.target.value)
-                }
-                placeholder="Masukkan password"
-                className="w-full rounded-2xl border border-white/15 bg-white/5 px-4 py-4 pr-12 text-white outline-none transition placeholder:text-white/40 focus:border-yellow-400"
-              />
+            <div className="relative flex items-center">
+              {showPassword ? (
+                <input
+                  key="pwd-visible"
+                  type="text"
+                  name="pwd_visible"
+                  autoComplete="off"
+                  autoCapitalize="off"
+                  autoCorrect="off"
+                  spellCheck="false"
+                  required
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="Masukkan password"
+                  style={{ WebkitTextSecurity: "none" } as React.CSSProperties}
+                  className="w-full rounded-2xl border-2 border-yellow-400 bg-white/10 px-4 py-4 pr-14 text-white outline-none transition placeholder:text-white/40 font-mono text-base font-bold tracking-wider"
+                />
+              ) : (
+                <input
+                  key="pwd-hidden"
+                  type="password"
+                  name="password"
+                  autoComplete="current-password"
+                  required
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="Masukkan password"
+                  className="w-full rounded-2xl border border-white/15 bg-white/5 px-4 py-4 pr-14 text-white outline-none transition placeholder:text-white/40 focus:border-yellow-400 text-base"
+                />
+              )}
 
               <button
                 type="button"
-                onClick={() =>
-                  setShowPassword(
-                    (prev) => !prev
-                  )
-                }
-                className="absolute right-4 top-1/2 -translate-y-1/2 text-white/60 transition hover:text-white"
+                tabIndex={-1}
+                onPointerDown={(e) => e.stopPropagation()}
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setShowPassword((prev) => !prev);
+                }}
+                className={`absolute right-2.5 top-1/2 -translate-y-1/2 z-30 flex h-11 w-11 items-center justify-center rounded-xl transition cursor-pointer ${
+                  showPassword
+                    ? "bg-yellow-400 text-slate-950 shadow-md shadow-yellow-400/30 scale-105"
+                    : "bg-white/10 text-white/80 hover:text-white hover:bg-white/20"
+                }`}
                 aria-label={
                   showPassword
                     ? "Sembunyikan password"
                     : "Tampilkan password"
                 }
+                title={showPassword ? "Sembunyikan password" : "Lihat password"}
               >
                 {showPassword ? (
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    className="h-5 w-5"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                    strokeWidth={2}
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      d="M3 3l18 18M10.584 10.587A2 2 0 0013.414 13.4M9.88 4.24A10.45 10.45 0 0112 4c5 0 8.5 4 9.5 6-.37.75-.98 1.68-1.82 2.59M6.23 6.23C4.53 7.39 3.35 8.8 2.5 10c1 2 4.5 6 9.5 6 1.1 0 2.12-.2 3.03-.55"
-                    />
-                  </svg>
+                  <EyeOff size={22} className="stroke-[2.5]" />
                 ) : (
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    className="h-5 w-5"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                    strokeWidth={2}
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6z"
-                    />
-
-                    <circle
-                      cx="12"
-                      cy="12"
-                      r="2.5"
-                    />
-                  </svg>
+                  <Eye size={22} className="stroke-[2]" />
                 )}
               </button>
             </div>
+
+            {showPassword && password && (
+              <div className="mt-2.5 flex items-center justify-between rounded-xl bg-yellow-400/15 border border-yellow-400/40 p-3 text-xs text-yellow-200 animate-in fade-in duration-150">
+                <div className="flex items-center gap-1.5 overflow-hidden">
+                  <span className="text-yellow-300 font-bold shrink-0">Password:</span>
+                  <span className="font-mono text-sm font-black text-white bg-black/30 px-2 py-0.5 rounded-md truncate select-all">
+                    {password}
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(false)}
+                  className="text-[11px] font-bold text-yellow-300 hover:text-white underline shrink-0 ml-2"
+                >
+                  Tutup
+                </button>
+              </div>
+            )}
           </div>
 
           <div className="flex justify-end">
