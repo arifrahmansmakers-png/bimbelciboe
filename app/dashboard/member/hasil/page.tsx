@@ -14,9 +14,11 @@ import {
   GraduationCap,
   Sparkles,
   BookOpen,
+  Lock,
 } from "lucide-react";
 import { useUser } from "@/context/UserContext";
 import { getAllCustomPakets } from "@/data/tka_member/store";
+import { normalizeJenjang, getJenjangLabel } from "@/data/tka_member";
 
 interface EvaluationItem {
   id: string;
@@ -36,15 +38,9 @@ interface EvaluationItem {
 export default function MemberHasilPage() {
   const user = useUser();
 
-  const getRegisteredJenjang = (): "SD" | "SMP" | "SMA" => {
-    const raw = (user?.educationLevelId || "").toUpperCase();
-    if (raw.includes("SMA") || raw.includes("SMK") || raw.includes("MA")) return "SMA";
-    if (raw.includes("SMP") || raw.includes("MTS")) return "SMP";
-    return "SD";
-  };
-
-  const registeredJenjang = getRegisteredJenjang();
-  const [filterJenjang, setFilterJenjang] = useState<"ALL" | "SD" | "SMP" | "SMA">("ALL");
+  const registeredJenjang = normalizeJenjang(user?.educationLevelId);
+  const [filterCategory, setFilterCategory] = useState<"ALL" | "latihan" | "tryout">("ALL");
+  const [lockedModal, setLockedModal] = useState<{ open: boolean; targetName: string } | null>(null);
   const [records, setRecords] = useState<EvaluationItem[]>([]);
 
   // Load progress dari localStorage & fallback seed
@@ -152,10 +148,13 @@ export default function MemberHasilPage() {
     setRecords(dynamicList);
   }, []);
 
-  const filtered = records.filter((r) => {
-    if (filterJenjang === "ALL") return true;
-    return r.jenjang === filterJenjang;
-  });
+  // Hanya tampilkan hasil sesuai jenjang terdaftar siswa
+  const filtered = records
+    .filter((r) => r.jenjang === registeredJenjang)
+    .filter((r) => {
+      if (filterCategory === "ALL") return true;
+      return r.category === filterCategory;
+    });
 
   const avgScore = Math.round(
     filtered.reduce((acc, curr) => acc + curr.score, 0) / (filtered.length || 1)
@@ -174,46 +173,93 @@ export default function MemberHasilPage() {
           <div>
             <h1 className="text-2xl font-black md:text-3xl">Riwayat Hasil & Evaluasi Ujian</h1>
             <p className="mt-1 text-sm text-blue-100">
-              Pantau kemajuan skor latihan bertingkat dan tryout CBT berdurasi 45 menit di semua tingkatan.
+              Evaluasi performa pengerjaan khusus jenjang <span className="font-bold text-amber-300">{getJenjangLabel(registeredJenjang)}</span>. Menu jenjang lain dikunci.
             </p>
           </div>
         </div>
       </section>
 
-      {/* FILTER TINGKATAN (SEMUA / SD / SMP / SMA) */}
-      <div className="flex flex-wrap gap-2.5 border-b border-slate-200 pb-2">
-        {[
-          { id: "ALL", label: "Semua Tingkatan" },
-          { id: "SD", label: "SD / MI" },
-          { id: "SMP", label: "SMP / MTs" },
-          { id: "SMA", label: "SMA / MA" },
-        ].map((tab) => {
-          const isSelected = filterJenjang === tab.id;
-          const isRegistered = registeredJenjang === tab.id;
+      {/* TINGKATAN TABS (TERKUNCI SESUAI TINGKATAN MEMBER) */}
+      <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm space-y-4">
+        <div>
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-3">
+            <label className="block text-xs font-black uppercase tracking-wider text-slate-500">
+              Tingkatan Sekolah:
+            </label>
+            <span className="inline-flex items-center gap-1.5 text-[11px] font-bold text-amber-800 bg-amber-50 border border-amber-200 px-3 py-1 rounded-full">
+              <Lock size={12} className="text-amber-600" />
+              <span>Akses hasil terkunci untuk tingkatan {registeredJenjang}</span>
+            </span>
+          </div>
 
-          return (
-            <button
-              key={tab.id}
-              onClick={() => setFilterJenjang(tab.id as any)}
-              className={`flex items-center gap-2 rounded-2xl px-4 py-2.5 text-xs font-bold transition ${
-                isSelected
-                  ? "bg-blue-600 text-white shadow-sm shadow-blue-600/30"
-                  : "bg-white border border-slate-200 text-slate-700 hover:bg-slate-50"
-              }`}
-            >
-              <span>{tab.label}</span>
-              {isRegistered && (
-                <span
-                  className={`text-[10px] font-bold px-1.5 py-0.2 rounded-full ${
-                    isSelected ? "bg-amber-400 text-slate-950" : "bg-blue-100 text-blue-800"
-                  }`}
+          <div className="grid grid-cols-3 gap-3">
+            {[
+              { id: "SD", label: "SD / MI" },
+              { id: "SMP", label: "SMP / MTs" },
+              { id: "SMA", label: "SMA / MA" },
+            ].map((tab) => {
+              const isRegistered = registeredJenjang === tab.id;
+
+              if (isRegistered) {
+                return (
+                  <div
+                    key={tab.id}
+                    className="flex flex-col sm:flex-row items-center justify-center gap-2 py-3 px-4 rounded-2xl border border-blue-600 bg-blue-600 text-white shadow-md shadow-blue-600/20 font-black text-xs sm:text-sm"
+                  >
+                    <GraduationCap size={16} />
+                    <span>{tab.label}</span>
+                    <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-amber-400 text-slate-950">
+                      Tingkat Anda (Aktif)
+                    </span>
+                  </div>
+                );
+              }
+
+              return (
+                <button
+                  key={tab.id}
+                  type="button"
+                  onClick={() => setLockedModal({ open: true, targetName: tab.label })}
+                  className="group relative flex flex-col sm:flex-row items-center justify-center gap-2 py-3 px-4 rounded-2xl border border-dashed border-slate-300 bg-slate-50/80 text-slate-400 hover:bg-slate-100 hover:text-slate-600 font-bold text-xs sm:text-sm transition"
+                  title={`Hasil ujian ${tab.label} terkunci`}
                 >
-                  Tingkat Anda
-                </span>
-              )}
-            </button>
-          );
-        })}
+                  <Lock size={14} className="text-amber-500" />
+                  <span>{tab.label}</span>
+                  <span className="inline-flex items-center gap-1 text-[10px] font-black px-2 py-0.5 rounded-full bg-slate-200 text-slate-600 group-hover:bg-amber-100 group-hover:text-amber-800 transition">
+                    <Lock size={10} />
+                    Terkunci
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* FILTER KATEGORI: SEMUA / LATIHAN / TRYOUT */}
+        <div className="border-t border-slate-100 pt-3 flex flex-wrap gap-2 items-center">
+          <span className="text-xs font-bold text-slate-500 mr-2">Kategori Soal:</span>
+          {[
+            { id: "ALL", label: `Semua Hasil ${registeredJenjang}` },
+            { id: "latihan", label: "Latihan Saja (10 Paket)" },
+            { id: "tryout", label: "Tryout CBT Saja (45 Menit)" },
+          ].map((cat) => {
+            const isSelected = filterCategory === cat.id;
+            return (
+              <button
+                key={cat.id}
+                type="button"
+                onClick={() => setFilterCategory(cat.id as any)}
+                className={`rounded-xl px-3.5 py-1.5 text-xs font-bold transition ${
+                  isSelected
+                    ? "bg-slate-900 text-white shadow-sm"
+                    : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                }`}
+              >
+                {cat.label}
+              </button>
+            );
+          })}
+        </div>
       </div>
 
       {/* STATS HIGHLIGHT */}
@@ -325,6 +371,36 @@ export default function MemberHasilPage() {
           ))
         )}
       </div>
+
+      {/* MODAL PENJELASAN JENJANG TERKUNCI */}
+      {lockedModal?.open && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+          <div className="w-full max-w-md rounded-3xl bg-white p-6 shadow-2xl border border-slate-100 text-center space-y-4">
+            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-amber-100 text-amber-600">
+              <Lock size={32} />
+            </div>
+            <div>
+              <h3 className="text-xl font-black text-slate-900">
+                Hasil {lockedModal.targetName} Terkunci
+              </h3>
+              <p className="mt-2 text-xs sm:text-sm text-slate-600 leading-relaxed">
+                Akun Anda terdaftar khusus pada jenjang{" "}
+                <span className="font-bold text-blue-700">{getJenjangLabel(registeredJenjang)}</span>.
+                Riwayat evaluasi hasil ujian jenjang {lockedModal.targetName} tidak dapat diakses untuk menjaga akurasi laporan pembelajaran Anda.
+              </p>
+            </div>
+            <div className="pt-2">
+              <button
+                type="button"
+                onClick={() => setLockedModal(null)}
+                className="w-full rounded-2xl bg-blue-600 py-3 text-xs sm:text-sm font-bold text-white shadow-md hover:bg-blue-700 transition"
+              >
+                Kembali ke Hasil {registeredJenjang}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

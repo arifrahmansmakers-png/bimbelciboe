@@ -59,3 +59,23 @@ export function isTKAPaketUnlocked(
 
   return false;
 }
+
+// Normalisasi jenjang pendidikan dari data user (SD, SMP, atau SMA)
+export function normalizeJenjang(raw?: string | null): "SD" | "SMP" | "SMA" {
+  if (!raw) return "SD";
+  const upper = raw.trim().toUpperCase();
+  if (upper.includes("SMA") || upper.includes("SMK") || upper.includes("MA")) return "SMA";
+  if (upper.includes("SMP") || upper.includes("MTS")) return "SMP";
+  return "SD";
+}
+
+export function getJenjangLabel(jenjang: "SD" | "SMP" | "SMA"): string {
+  switch (jenjang) {
+    case "SD":
+      return "SD / MI (Kelas 4-6)";
+    case "SMP":
+      return "SMP / MTs (Kelas 7-9)";
+    case "SMA":
+      return "SMA / MA (Kelas 10-12)";
+  }
+}

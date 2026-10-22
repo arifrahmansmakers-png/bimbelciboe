@@ -3,6 +3,9 @@
 import MenuItem from "./MenuItem";
 import { DashboardMenu } from "@/types/menu";
 import Image from "next/image";
+import { useUser } from "@/context/UserContext";
+import { GraduationCap, Lock } from "lucide-react";
+import { normalizeJenjang } from "@/data/tka_member";
 
 interface Props {
   title: string;
@@ -13,6 +16,8 @@ export default function Sidebar({
   title,
   menus,
 }: Props) {
+  const user = useUser();
+  const registeredJenjang = user?.role === "member" ? normalizeJenjang(user?.educationLevelId) : null;
   return (
     <aside
       className="
@@ -129,7 +134,6 @@ export default function Sidebar({
       <div className="flex min-h-0 flex-1 flex-col">
 
         <div className="px-5 pb-2 pt-5">
-
           <p
             className="
               px-2
@@ -142,8 +146,25 @@ export default function Sidebar({
           >
             Menu Utama
           </p>
-
         </div>
+
+        {registeredJenjang && (
+          <div className="mx-4 mb-2 rounded-2xl border border-blue-100 bg-gradient-to-r from-blue-50/80 to-indigo-50/80 p-3 shadow-xs">
+            <div className="flex items-center justify-between text-xs font-bold text-blue-950">
+              <span className="flex items-center gap-1.5">
+                <GraduationCap size={15} className="text-blue-600" />
+                <span>Jenjang Siswa</span>
+              </span>
+              <span className="rounded-lg bg-blue-600 px-2 py-0.5 text-[10px] font-black text-white shadow-xs">
+                {registeredJenjang}
+              </span>
+            </div>
+            <div className="mt-1.5 flex items-center gap-1 text-[10px] font-semibold text-slate-500">
+              <Lock size={11} className="text-amber-500 shrink-0" />
+              <span>Menu tingkat lain dikunci</span>
+            </div>
+          </div>
+        )}
 
         <nav
           className="

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import {
   Search,
@@ -12,8 +12,10 @@ import {
   Clock,
   CheckCircle2,
   Bookmark,
+  Lock,
 } from "lucide-react";
 import { useUser } from "@/context/UserContext";
+import { normalizeJenjang, getJenjangLabel } from "@/data/tka_member";
 
 interface MateriModule {
   id: string;
@@ -221,22 +223,11 @@ const ALL_MATERI: MateriModule[] = [
 export default function MemberMateriPage() {
   const user = useUser();
 
-  // Helper normalisasi jenjang dari profil user
-  const getUserDefaultJenjang = (): "SD" | "SMP" | "SMA" => {
-    const raw = (user.educationLevelId || "").toUpperCase();
-    if (raw.includes("SMA") || raw.includes("SMK") || raw.includes("MA")) return "SMA";
-    if (raw.includes("SMP") || raw.includes("MTS")) return "SMP";
-    return "SD";
-  };
-
-  const registeredJenjang = getUserDefaultJenjang();
-  const [selectedJenjang, setSelectedJenjang] = useState<"SD" | "SMP" | "SMA">(registeredJenjang);
+  const registeredJenjang = normalizeJenjang(user.educationLevelId);
+  // Jenjang materi dikunci khusus tingkatan aktif akun member
+  const selectedJenjang = registeredJenjang;
+  const [lockedModal, setLockedModal] = useState<{ open: boolean; targetName: string } | null>(null);
   const [search, setSearch] = useState("");
-
-  // Update default jika data user berubah
-  useEffect(() => {
-    setSelectedJenjang(getUserDefaultJenjang());
-  }, [user.educationLevelId]);
 
   const filteredMateri = ALL_MATERI.filter((m) => {
     const matchJenjang = m.jenjang === selectedJenjang;
@@ -263,51 +254,63 @@ export default function MemberMateriPage() {
               </div>
               <h1 className="text-2xl sm:text-3xl font-black">Bank Materi Pembelajaran</h1>
               <p className="text-xs sm:text-sm text-blue-100 max-w-xl mt-0.5">
-                Materi disusun sistematis sesuai jenjang Anda, dan Anda tetap dapat bebas menjelajah materi di semua tingkatan (SD, SMP, SMA).
+                Materi disusun sistematis khusus untuk tingkat terdaftar Anda: <span className="font-bold text-amber-300">{getJenjangLabel(registeredJenjang)}</span>. Menu tingkatan lain dikunci untuk kurikulum Anda.
               </p>
             </div>
           </div>
         </div>
       </section>
 
-      {/* FILTER TINGKATAN (SD, SMP, SMA) */}
+      {/* FILTER TINGKATAN (TERKUNCI SESUAI TINGKATAN MEMBER) */}
       <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm space-y-4">
         <div>
-          <label className="block text-xs font-black uppercase tracking-wider text-slate-500 mb-2">
-            Pilih Tingkatan Pendidikan:
-          </label>
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-3">
+            <label className="block text-xs font-black uppercase tracking-wider text-slate-500">
+              Pilih Tingkatan Pendidikan:
+            </label>
+            <span className="inline-flex items-center gap-1.5 text-[11px] font-bold text-amber-800 bg-amber-50 border border-amber-200 px-3 py-1 rounded-full">
+              <Lock size={12} className="text-amber-600" />
+              <span>Akses materi terkunci untuk jenjang {registeredJenjang}</span>
+            </span>
+          </div>
+
           <div className="grid grid-cols-3 gap-3">
             {[
               { id: "SD", name: "SD / MI", badge: "Kelas 4-6" },
               { id: "SMP", name: "SMP / MTs", badge: "Kelas 7-9" },
               { id: "SMA", name: "SMA / MA", badge: "Kelas 10-12" },
             ].map((j) => {
-              const isSelected = selectedJenjang === j.id;
               const isUserRegistered = registeredJenjang === j.id;
+
+              if (isUserRegistered) {
+                return (
+                  <div
+                    key={j.id}
+                    className="relative flex flex-col sm:flex-row items-center justify-center gap-2 py-3.5 px-4 rounded-2xl border border-blue-600 bg-blue-600 text-white shadow-md shadow-blue-600/20 font-black text-sm"
+                  >
+                    <GraduationCap size={18} />
+                    <span>{j.name}</span>
+                    <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-amber-400 text-slate-950">
+                      Tingkat Anda (Terbuka)
+                    </span>
+                  </div>
+                );
+              }
 
               return (
                 <button
                   key={j.id}
-                  onClick={() => setSelectedJenjang(j.id as any)}
-                  className={`relative flex flex-col sm:flex-row items-center justify-center gap-2 py-3.5 px-4 rounded-2xl border font-black text-sm transition ${
-                    isSelected
-                      ? "border-blue-600 bg-blue-600 text-white shadow-md shadow-blue-600/20"
-                      : "border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100"
-                  }`}
+                  type="button"
+                  onClick={() => setLockedModal({ open: true, targetName: j.name })}
+                  className="group relative flex flex-col sm:flex-row items-center justify-center gap-2 py-3.5 px-4 rounded-2xl border border-dashed border-slate-300 bg-slate-50/80 text-slate-400 hover:bg-slate-100 hover:text-slate-600 font-bold text-sm transition"
+                  title={`Materi ${j.name} terkunci untuk akun Anda`}
                 >
-                  <GraduationCap size={18} />
+                  <Lock size={15} className="text-amber-500" />
                   <span>{j.name}</span>
-                  {isUserRegistered && (
-                    <span
-                      className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                        isSelected
-                          ? "bg-amber-400 text-slate-950"
-                          : "bg-blue-100 text-blue-800 border border-blue-200"
-                      }`}
-                    >
-                      Tingkat Anda
-                    </span>
-                  )}
+                  <span className="inline-flex items-center gap-1 text-[10px] font-black px-2 py-0.5 rounded-full bg-slate-200 text-slate-600 group-hover:bg-amber-100 group-hover:text-amber-800 transition">
+                    <Lock size={10} />
+                    Terkunci
+                  </span>
                 </button>
               );
             })}
@@ -377,6 +380,36 @@ export default function MemberMateriPage() {
           </div>
         ))}
       </div>
+
+      {/* MODAL PENJELASAN JENJANG TERKUNCI */}
+      {lockedModal?.open && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+          <div className="w-full max-w-md rounded-3xl bg-white p-6 shadow-2xl border border-slate-100 text-center space-y-4">
+            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-amber-100 text-amber-600">
+              <Lock size={32} />
+            </div>
+            <div>
+              <h3 className="text-xl font-black text-slate-900">
+                Materi {lockedModal.targetName} Terkunci
+              </h3>
+              <p className="mt-2 text-xs sm:text-sm text-slate-600 leading-relaxed">
+                Akun Anda terdaftar khusus untuk jenjang{" "}
+                <span className="font-bold text-blue-700">{getJenjangLabel(registeredJenjang)}</span>.
+                Modul dan rangkuman materi jenjang {lockedModal.targetName} dikunci khusus untuk siswa terdaftar di tingkatan tersebut.
+              </p>
+            </div>
+            <div className="pt-2">
+              <button
+                type="button"
+                onClick={() => setLockedModal(null)}
+                className="w-full rounded-2xl bg-blue-600 py-3 text-xs sm:text-sm font-bold text-white shadow-md hover:bg-blue-700 transition"
+              >
+                Kembali ke Materi {registeredJenjang}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

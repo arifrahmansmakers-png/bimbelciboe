@@ -8,11 +8,14 @@ import {
   TKASoal,
   MemberProgressItem,
   isTKAPaketUnlocked,
+  normalizeJenjang,
+  getJenjangLabel,
 } from "@/data/tka_member";
 import {
   getCustomPaketById,
   getCustomPaketsBySubject,
 } from "@/data/tka_member/store";
+import { useUser } from "@/context/UserContext";
 import {
   Clock,
   CheckCircle2,
@@ -35,7 +38,10 @@ import {
 export default function TKAPaketUjianPage() {
   const params = useParams();
   const router = useRouter();
+  const user = useUser();
   const paketId = typeof params.paketId === "string" ? params.paketId : "";
+
+  const registeredJenjang = normalizeJenjang(user?.educationLevelId);
 
   const [paket, setPaket] = useState<TKAPaket | null>(null);
   const [currentIdx, setCurrentIdx] = useState(0);
@@ -48,6 +54,7 @@ export default function TKAPaketUjianPage() {
   const [scoreResult, setScoreResult] = useState<MemberProgressItem | null>(null);
   const [showExplanation, setShowExplanation] = useState(false);
   const [isLocked, setIsLocked] = useState(false);
+  const [isJenjangMismatch, setIsJenjangMismatch] = useState(false);
 
   // Load paket data & progress
   useEffect(() => {
@@ -60,6 +67,15 @@ export default function TKAPaketUjianPage() {
     }
 
     setPaket(data);
+
+    // Validasi apakah jenjang paket sesuai dengan jenjang terdaftar akun siswa
+    const paketJenjang: "SD" | "SMP" | "SMA" =
+      data.jenjang === "SD/MI" ? "SD" : data.jenjang === "SMP/MTs" ? "SMP" : "SMA";
+
+    if (paketJenjang !== registeredJenjang) {
+      setIsJenjangMismatch(true);
+      return;
+    }
 
     // Cek status unlock dari localStorage
     let progressMap: Record<string, MemberProgressItem> = {};
@@ -92,7 +108,7 @@ export default function TKAPaketUjianPage() {
     const totalDetik = data.durasiMenit * 60;
     setTimeLeft(totalDetik);
     setIsReady(true);
-  }, [paketId, router]);
+  }, [paketId, router, registeredJenjang]);
 
   // Timer logic
   useEffect(() => {
@@ -111,6 +127,42 @@ export default function TKAPaketUjianPage() {
 
     return () => clearInterval(interval);
   }, [isReady, isSubmitted, isLocked, timeLeft]);
+
+  if (isJenjangMismatch && paket) {
+    const rawPaketJenjang: "SD" | "SMP" | "SMA" =
+      paket.jenjang === "SD/MI" ? "SD" : paket.jenjang === "SMP/MTs" ? "SMP" : "SMA";
+
+    return (
+      <div className="max-w-xl mx-auto py-16 px-4 text-center">
+        <div className="w-20 h-20 bg-rose-100 text-rose-600 rounded-3xl flex items-center justify-center mx-auto mb-6 shadow-inner">
+          <Lock size={40} />
+        </div>
+        <h1 className="text-2xl font-black text-slate-900 mb-3">
+          Akses Paket Terkunci
+        </h1>
+        <p className="text-slate-600 mb-6 text-sm leading-relaxed">
+          Paket soal <strong>{paket.title}</strong> dikhususkan untuk jenjang{" "}
+          <strong className="text-slate-900">{getJenjangLabel(rawPaketJenjang)}</strong>, sedangkan akun Anda terdaftar untuk jenjang{" "}
+          <strong className="text-blue-700">{getJenjangLabel(registeredJenjang)}</strong>. Sesuai kebijakan, Anda hanya dapat mengerjakan soal sesuai tingkatan akun Anda.
+        </p>
+        <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
+          <Link
+            href="/dashboard/member/latihan"
+            className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3 bg-blue-600 text-white font-bold rounded-2xl shadow-md hover:bg-blue-700 transition text-sm"
+          >
+            <ArrowLeft size={16} />
+            Buka Latihan {registeredJenjang}
+          </Link>
+          <Link
+            href="/dashboard/member/tryout"
+            className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3 bg-slate-900 text-white font-bold rounded-2xl hover:bg-slate-800 transition text-sm"
+          >
+            Buka Tryout {registeredJenjang}
+          </Link>
+        </div>
+      </div>
+    );
+  }
 
   if (isLocked && paket) {
     return (
