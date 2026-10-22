@@ -4,11 +4,20 @@ import Script from 'next/script';
 import type { Metadata } from 'next';
 
 export const metadata: Metadata = {
-  title: 'Bimbel CBT',
-  description: 'Platform bimbingan belajar dan simulasi CBT online untuk persiapan ujian TKA.',
+  title: 'Ciboe Edu - Bimbel & Simulasi CBT TKA',
+  description: 'Platform bimbingan belajar dan simulasi CBT online terstandar nasional untuk persiapan ujian TKA.',
+  icons: {
+    icon: [
+      { url: '/logo.png', sizes: 'any' },
+      { url: '/icon.png', type: 'image/png' },
+    ],
+    shortcut: '/logo.png',
+    apple: '/logo.png',
+  },
   openGraph: {
-    title: 'Bimbel CBT',
-    description: 'Platform bimbingan belajar dan simulasi CBT online untuk persiapan ujian TKA.',
+    title: 'Ciboe Edu - Bimbel & Simulasi CBT TKA',
+    description: 'Platform bimbingan belajar dan simulasi CBT online terstandar nasional untuk persiapan ujian TKA.',
+    images: ['/logo.png'],
   },
 };
 
