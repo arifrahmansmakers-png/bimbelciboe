@@ -14,11 +14,12 @@ export interface TKASoal {
 }
 
 export interface TKAPaket {
-  id: string; // e.g. "sd-num-p1"
-  subjectId: string; // e.g. "sd-numerasi"
+  id: string; // e.g. "sd-mat-p1" or "sd-mat-to1"
+  subjectId: string; // e.g. "matematika"
   jenjang: "SD/MI" | "SMP/MTs" | "SMA";
   mapelName: string;
-  paketNumber: number; // 1 s/d 10
+  category?: "latihan" | "tryout"; // default "latihan"
+  paketNumber: number; // 1 s/d 10 (latihan) atau 1 s/d 3 (tryout)
   title: string;
   description: string;
   levelKesukaran: "Level 1: Dasar & Pemahaman" | "Level 2: Aplikasi & Terapan" | "Level 3: Analisis & HOTS Mahir";

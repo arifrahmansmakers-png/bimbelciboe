@@ -5,6 +5,7 @@ import {
   BarChart3,
   User,
   Handshake,
+  CreditCard,
 } from "lucide-react";
 
 import { DashboardMenu } from "@/types/menu";
@@ -29,6 +30,11 @@ export const memberMenus: DashboardMenu[] = [
     title: "Hasil",
     href: "/dashboard/member/hasil",
     icon: BarChart3,
+  },
+  {
+    title: "Perpanjang",
+    href: "/dashboard/member/perpanjang",
+    icon: CreditCard,
   },
   {
     title: "Profil",

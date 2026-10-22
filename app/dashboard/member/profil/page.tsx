@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import {
   User,
   Mail,
@@ -13,6 +14,7 @@ import {
   AlertCircle,
   Clock,
   Sparkles,
+  CreditCard,
 } from "lucide-react";
 import { useUser } from "@/context/UserContext";
 import { sendPasswordResetEmail } from "firebase/auth";
@@ -63,10 +65,19 @@ export default function MemberProfilePage() {
 
       {/* MEMBERSHIP STATUS CARD */}
       <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-        <h2 className="text-lg font-black text-slate-900 mb-4 flex items-center gap-2">
-          <ShieldCheck size={20} className="text-emerald-500" />
-          Status Membership
-        </h2>
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4">
+          <h2 className="text-lg font-black text-slate-900 flex items-center gap-2">
+            <ShieldCheck size={20} className="text-emerald-500" />
+            Status Membership
+          </h2>
+          <Link
+            href="/dashboard/member/perpanjang"
+            className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 px-4 py-2 text-xs font-bold text-white shadow-sm hover:from-blue-700 hover:to-indigo-700 transition"
+          >
+            <CreditCard size={15} />
+            Perpanjang Masa Aktif
+          </Link>
+        </div>
         <div className="grid sm:grid-cols-3 gap-4">
           <div className="rounded-2xl bg-slate-50 p-4">
             <span className="text-xs text-slate-400 font-medium">Paket Langganan</span>

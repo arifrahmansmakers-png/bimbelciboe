@@ -1,14 +1,14 @@
 "use client";
 
 import { TKAPaket, TKASoal } from "./types";
-import { allTKAPakets } from "./index";
+import { COMPREHENSIVE_BANK_PAKETS, ALL_SUBJECTS } from "./comprehensive_bank";
 
-const STORAGE_KEY = "tka_custom_bank_v2";
+const STORAGE_KEY = "tka_comprehensive_bank_v4";
 
 // Helper mengambil data paket (mengutamakan hasil edit admin dari localStorage)
 export function getAllCustomPakets(): TKAPaket[] {
   if (typeof window === "undefined") {
-    return allTKAPakets;
+    return COMPREHENSIVE_BANK_PAKETS;
   }
 
   try {
@@ -23,7 +23,7 @@ export function getAllCustomPakets(): TKAPaket[] {
     console.error("Gagal membaca bank soal kustom:", err);
   }
 
-  return allTKAPakets;
+  return COMPREHENSIVE_BANK_PAKETS;
 }
 
 // Simpan seluruh data paket ke localStorage
@@ -44,12 +44,48 @@ export function getCustomPaketById(id: string): TKAPaket | undefined {
   return all.find((p) => p.id === id);
 }
 
-// Cari seluruh paket berdasarkan Subject ID
-export function getCustomPaketsBySubject(subjectId: string): TKAPaket[] {
+// Cari seluruh paket berdasarkan Subject ID & Kategori opsional
+export function getCustomPaketsBySubject(
+  subjectId: string,
+  category?: "latihan" | "tryout"
+): TKAPaket[] {
   const all = getAllCustomPakets();
-  return all
-    .filter((p) => p.subjectId === subjectId)
-    .sort((a, b) => a.paketNumber - b.paketNumber);
+  let filtered = all.filter(
+    (p) => p.subjectId === subjectId || p.subjectId === subjectId.replace("sd-", "")
+  );
+
+  if (category) {
+    filtered = filtered.filter((p) => (p.category || "latihan") === category);
+  }
+
+  return filtered.sort((a, b) => a.paketNumber - b.paketNumber);
+}
+
+// Cari paket berdasarkan Jenjang, Subject ID, dan Kategori
+export function getCustomPaketsByJenjangAndSubject(
+  jenjangCode: "SD" | "SMP" | "SMA",
+  subjectId: string,
+  category?: "latihan" | "tryout"
+): TKAPaket[] {
+  const mapping: Record<string, string> = {
+    SD: "SD/MI",
+    SMP: "SMP/MTs",
+    SMA: "SMA",
+  };
+  const targetJenjang = mapping[jenjangCode] || "SD/MI";
+
+  const all = getAllCustomPakets();
+  let filtered = all.filter(
+    (p) =>
+      p.jenjang === targetJenjang &&
+      (p.subjectId === subjectId || p.subjectId === subjectId.replace("sd-", ""))
+  );
+
+  if (category) {
+    filtered = filtered.filter((p) => (p.category || "latihan") === category);
+  }
+
+  return filtered.sort((a, b) => a.paketNumber - b.paketNumber);
 }
 
 // Update 1 butir soal
@@ -105,8 +141,12 @@ export function deleteCustomSoal(paketId: string, soalId: string): boolean {
   const paket = all.find((p) => p.id === paketId);
   if (!paket) return false;
 
+  const initialLen = paket.soalList.length;
   paket.soalList = paket.soalList.filter((s) => s.id !== soalId);
-  // Re-number soal
+
+  if (paket.soalList.length === initialLen) return false;
+
+  // Re-numbering urutan nomor soal
   paket.soalList.forEach((s, idx) => {
     s.nomor = idx + 1;
   });
@@ -116,94 +156,77 @@ export function deleteCustomSoal(paketId: string, soalId: string): boolean {
   return true;
 }
 
-// Pindah soal dari satu paket ke paket lain
+// Pindah 1 butir soal dari satu paket ke paket lain
 export function moveCustomSoal(
-  fromPaketId: string,
-  toPaketId: string,
+  sourcePaketId: string,
+  targetPaketId: string,
   soalId: string
 ): boolean {
-  if (fromPaketId === toPaketId) return false;
+  if (sourcePaketId === targetPaketId) return false;
 
   const all = getAllCustomPakets();
-  const fromPaket = all.find((p) => p.id === fromPaketId);
-  const toPaket = all.find((p) => p.id === toPaketId);
+  const sourcePaket = all.find((p) => p.id === sourcePaketId);
+  const targetPaket = all.find((p) => p.id === targetPaketId);
 
-  if (!fromPaket || !toPaket) return false;
+  if (!sourcePaket || !targetPaket) return false;
 
-  const targetSoal = fromPaket.soalList.find((s) => s.id === soalId);
-  if (!targetSoal) return false;
+  const soalIdx = sourcePaket.soalList.findIndex((s) => s.id === soalId);
+  if (soalIdx === -1) return false;
 
-  // Hapus dari paket asal
-  fromPaket.soalList = fromPaket.soalList.filter((s) => s.id !== soalId);
-  fromPaket.soalList.forEach((s, idx) => {
+  // Ambil butir soal
+  const [soalToMove] = sourcePaket.soalList.splice(soalIdx, 1);
+  sourcePaket.totalSoal = sourcePaket.soalList.length;
+
+  // Re-number source paket
+  sourcePaket.soalList.forEach((s, idx) => {
     s.nomor = idx + 1;
   });
-  fromPaket.totalSoal = fromPaket.soalList.length;
 
-  // Masukkan ke paket tujuan
-  targetSoal.nomor = toPaket.soalList.length + 1;
-  toPaket.soalList.push(targetSoal);
-  toPaket.totalSoal = toPaket.soalList.length;
+  // Pasang nomor baru di target paket
+  soalToMove.nomor = targetPaket.soalList.length + 1;
+  soalToMove.id = `${targetPaket.id}-moved-${Date.now()}`;
+  targetPaket.soalList.push(soalToMove);
+  targetPaket.totalSoal = targetPaket.soalList.length;
 
   saveAllCustomPakets(all);
   return true;
 }
 
-// Tambah paket soal baru
+// Tambah Paket Soal Baru
 export function addCustomPaket(
-  newPaketData: {
-    subjectId: string;
-    mapelName: string;
-    jenjang: "SD/MI" | "SMP/MTs" | "SMA";
-    title: string;
-    description: string;
-    levelKesukaran: "Level 1: Dasar & Pemahaman" | "Level 2: Aplikasi & Terapan" | "Level 3: Analisis & HOTS Mahir";
-    durasiMenit: number;
-    passingScore?: number;
+  paketInput: Omit<TKAPaket, "id" | "totalSoal" | "soalList"> & {
+    initialSoalList?: TKASoal[];
   }
 ): TKAPaket {
   const all = getAllCustomPakets();
-  const existingInSubject = all.filter((p) => p.subjectId === newPaketData.subjectId);
-  const nextPaketNumber = existingInSubject.length + 1;
-  const newId = `${newPaketData.subjectId}-p${nextPaketNumber}-${Date.now().toString(36)}`;
+  const newId = `${paketInput.subjectId}-custom-${Date.now()}`;
 
-  const createdPaket: TKAPaket = {
+  const newPaket: TKAPaket = {
+    ...paketInput,
     id: newId,
-    subjectId: newPaketData.subjectId,
-    jenjang: newPaketData.jenjang,
-    mapelName: newPaketData.mapelName,
-    paketNumber: nextPaketNumber,
-    title: newPaketData.title,
-    description: newPaketData.description,
-    levelKesukaran: newPaketData.levelKesukaran,
-    durasiMenit: newPaketData.durasiMenit || 25,
-    passingScore: newPaketData.passingScore || 50,
-    totalSoal: 0,
-    soalList: [],
+    category: paketInput.category || "latihan",
+    totalSoal: (paketInput.initialSoalList || []).length,
+    soalList: paketInput.initialSoalList || [],
   };
 
-  all.push(createdPaket);
+  all.push(newPaket);
   saveAllCustomPakets(all);
-  return createdPaket;
+  return newPaket;
 }
 
-// Hapus paket soal
+// Hapus Paket Soal
 export function deleteCustomPaket(paketId: string): boolean {
   const all = getAllCustomPakets();
-  const remaining = all.filter((p) => p.id !== paketId);
-  if (remaining.length === all.length) return false;
+  const filtered = all.filter((p) => p.id !== paketId);
+  if (filtered.length === all.length) return false;
 
-  saveAllCustomPakets(remaining);
+  saveAllCustomPakets(filtered);
   return true;
 }
 
-// Reset bank soal ke default
+// Reset kembali ke bank bawaan sistem
 export function resetCustomPaketsToDefault(): void {
   if (typeof window === "undefined") return;
-  try {
-    localStorage.removeItem(STORAGE_KEY);
-    window.dispatchEvent(new Event("tka_bank_soal_updated"));
-  } catch (err) {
-    console.error(err);
-  }
+  localStorage.removeItem(STORAGE_KEY);
+  window.dispatchEvent(new Event("tka_bank_soal_updated"));
 }

@@ -10,36 +10,57 @@ import {
   Sparkles,
   Award,
   BookOpen,
-  Lock,
-  Unlock,
   CheckCircle2,
   AlertCircle,
   ChevronRight,
   Zap,
   Target,
   GraduationCap,
+  Clock,
+  Dumbbell,
 } from "lucide-react";
 import {
-  tkaMemberSubjects,
-  isTKAPaketUnlocked,
+  ALL_JENJANG,
+  ALL_SUBJECTS,
+  getSubjectsByJenjang,
   MemberProgressItem,
   TKAPaket,
 } from "@/data/tka_member";
 import { getCustomPaketsBySubject } from "@/data/tka_member/store";
 
 export default function MemberTryoutPage() {
-  const [selectedSubjectId, setSelectedSubjectId] = useState<string>("matematika");
-  const [progressMap, setProgressMap] = useState<Record<string, MemberProgressItem>>({});
-  const [activeTab, setActiveTab] = useState<"bertingkat" | "simulasi">("bertingkat");
-  const [pakets, setPakets] = useState<TKAPaket[]>([]);
+  // Jenjang (SD, SMP, SMA)
+  const [selectedJenjang, setSelectedJenjang] = useState<"SD" | "SMP" | "SMA">("SD");
 
+  // Mapel (berdasarkan jenjang)
+  const [selectedSubjectId, setSelectedSubjectId] = useState<string>("sd-matematika");
+
+  // Progress member dari localStorage
+  const [progressMap, setProgressMap] = useState<Record<string, MemberProgressItem>>({});
+  const [tryoutPakets, setTryoutPakets] = useState<TKAPaket[]>([]);
+
+  // Daftar mapel untuk jenjang terpilih
+  const subjectsInJenjang = getSubjectsByJenjang(selectedJenjang);
+
+  // Auto-switch mapel jika jenjang berganti
+  useEffect(() => {
+    if (subjectsInJenjang.length > 0) {
+      if (!subjectsInJenjang.some((s) => s.id === selectedSubjectId)) {
+        setSelectedSubjectId(subjectsInJenjang[0].id);
+      }
+    }
+  }, [selectedJenjang, subjectsInJenjang, selectedSubjectId]);
+
+  // Load paket & progress
   const loadData = () => {
     try {
       const stored = localStorage.getItem("tka_member_progress_v1");
       if (stored) {
         setProgressMap(JSON.parse(stored));
       }
-      setPakets(getCustomPaketsBySubject(selectedSubjectId));
+      // Ambil paket kategori tryout (3 paket x 20 soal x 45 menit)
+      const loaded = getCustomPaketsBySubject(selectedSubjectId, "tryout");
+      setTryoutPakets(loaded);
     } catch (e) {
       console.error(e);
     }
@@ -49,392 +70,209 @@ export default function MemberTryoutPage() {
     loadData();
 
     const handleUpdate = () => {
-      setPakets(getCustomPaketsBySubject(selectedSubjectId));
+      const loaded = getCustomPaketsBySubject(selectedSubjectId, "tryout");
+      setTryoutPakets(loaded);
     };
 
     window.addEventListener("tka_bank_soal_updated", handleUpdate);
     return () => window.removeEventListener("tka_bank_soal_updated", handleUpdate);
   }, [selectedSubjectId]);
 
-  const activeSubject = tkaMemberSubjects.find((s) => s.id === selectedSubjectId) || tkaMemberSubjects[0];
-
-  // Hitung jumlah paket yang lulus
-  const passedCount = pakets.filter((p) => {
-    const item = progressMap[p.id];
-    return item && (item.passed || item.score > 50);
-  }).length;
-
-  // Simulasi Umum Nasional (Existing Tryouts)
-  const generalTryouts = [
-    {
-      id: "tryout-tka-lengkap-1",
-      title: "Simulasi TKA Paket 1 (Prediksi Nasional)",
-      description: "Uji kemampuan akademik komprehensif dengan sistem penilaian CBT standar nasional.",
-      subjectName: "TKA Campuran",
-      totalQuestions: 50,
-      durationMinutes: 90,
-      passingScore: 70,
-      badge: "Paling Populer",
-    },
-    {
-      id: "tryout-matematika-intensif",
-      title: "Tryout Matematika Wajib & Penalaran",
-      description: "Fokus latihan soal penalaran matematika, logika kuantitatif, dan hitungan cepat.",
-      subjectName: "Matematika",
-      totalQuestions: 30,
-      durationMinutes: 45,
-      passingScore: 75,
-      badge: "Intensif",
-    },
-    {
-      id: "tryout-bahasa-indonesia",
-      title: "Tryout Bahasa Indonesia & Literasi",
-      description: "Latihan pemahaman teks panjang, literasi bacaan, ejaan, dan struktur kalimat efektif.",
-      subjectName: "Bahasa Indonesia",
-      totalQuestions: 30,
-      durationMinutes: 40,
-      passingScore: 75,
-    },
-    {
-      id: "tryout-bahasa-inggris",
-      title: "Tryout Bahasa Inggris (Reading Comprehension)",
-      description: "Latihan pemahaman bacaan bahasa Inggris, grammar context, dan kosakata akademik.",
-      subjectName: "Bahasa Inggris",
-      totalQuestions: 25,
-      durationMinutes: 35,
-      passingScore: 70,
-    },
-  ];
+  // Subject yang aktif
+  const activeSubject = ALL_SUBJECTS.find((s) => s.id === selectedSubjectId) || subjectsInJenjang[0];
 
   return (
-    <div className="space-y-8 max-w-6xl mx-auto pb-12">
-      {/* HEADER BANNER */}
+    <div className="space-y-8 max-w-6xl mx-auto p-4 sm:p-6 lg:p-8">
+      {/* HEADER UTAMA */}
       <section className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-[#0f2747] via-[#173b63] to-[#24527d] p-6 text-white shadow-xl md:p-8">
-        <div className="max-w-3xl">
-          <div className="mb-3 inline-flex items-center gap-2 rounded-full bg-white/10 px-3.5 py-1 text-xs font-semibold backdrop-blur">
-            <Sparkles size={14} className="text-amber-300" />
-            <span>Zona Ujian Khusus Member</span>
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6">
+          <div className="flex items-center gap-4">
+            <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-amber-400 text-slate-950 font-black shadow-lg">
+              <Trophy size={32} />
+            </div>
+            <div>
+              <div className="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full bg-white/10 text-xs font-bold text-amber-300 backdrop-blur mb-1">
+                <Sparkles size={12} />
+                <span>Simulasi CBT Standar Nasional</span>
+              </div>
+              <h1 className="text-2xl sm:text-3xl font-black">Tryout CBT Resmi (3 Paket &bull; 45 Menit)</h1>
+              <p className="text-xs sm:text-sm text-blue-100 max-w-xl mt-0.5">
+                Setiap mata pelajaran di jenjang SD, SMP, dan SMA memiliki 3 paket tryout dengan 20 butir soal dan batas waktu pengerjaan 45 menit.
+              </p>
+            </div>
           </div>
-          <h1 className="text-2xl md:text-4xl font-black tracking-tight">
-            TKA Bertingkat & Tryout CBT
-          </h1>
-          <p className="mt-2 text-sm md:text-base text-blue-100 leading-relaxed">
-            Taklukkan 10 paket soal bertingkat per mata pelajaran. Paket berikutnya akan otomatis terbuka jika Anda berhasil mendapatkan <strong>nilai lebih dari 50</strong> pada paket sebelumnya!
-          </p>
 
-          {/* Stats Bar */}
-          <div className="mt-6 flex flex-wrap gap-4 text-xs font-bold">
-            <div className="flex items-center gap-2 bg-white/10 backdrop-blur px-3.5 py-2 rounded-2xl border border-white/10">
-              <Zap size={16} className="text-amber-400" />
-              <span>Syarat Lanjut: Nilai &gt; 50</span>
-            </div>
-            <div className="flex items-center gap-2 bg-white/10 backdrop-blur px-3.5 py-2 rounded-2xl border border-white/10">
-              <BookOpen size={16} className="text-emerald-400" />
-              <span>Dilengkapi Pembahasan Lengkap</span>
-            </div>
-            <div className="flex items-center gap-2 bg-white/10 backdrop-blur px-3.5 py-2 rounded-2xl border border-white/10">
-              <Award size={16} className="text-blue-300" />
-              <span>Literasi & Numerasi HOTS</span>
-            </div>
-          </div>
+          <Link
+            href="/dashboard/member/latihan"
+            className="shrink-0 flex items-center gap-2 rounded-2xl bg-white/10 hover:bg-white/20 border border-white/20 px-4 py-2.5 text-xs font-bold text-white transition backdrop-blur"
+          >
+            <Dumbbell size={16} />
+            <span>Ke Latihan 10 Paket</span>
+          </Link>
         </div>
       </section>
 
-      {/* NAVIGATION TABS: TKA Bertingkat vs Tryout Terjadwal */}
-      <div className="flex items-center gap-3 border-b border-slate-200 pb-3">
-        <button
-          onClick={() => setActiveTab("bertingkat")}
-          className={`flex items-center gap-2 px-5 py-2.5 rounded-2xl font-bold text-sm transition ${
-            activeTab === "bertingkat"
-              ? "bg-blue-600 text-white shadow-md"
-              : "text-slate-600 hover:bg-slate-100"
-          }`}
-        >
-          <Target size={18} />
-          <span>TKA 10 Paket Bertingkat (Level Up)</span>
-        </button>
-        <button
-          onClick={() => setActiveTab("simulasi")}
-          className={`flex items-center gap-2 px-5 py-2.5 rounded-2xl font-bold text-sm transition ${
-            activeTab === "simulasi"
-              ? "bg-blue-600 text-white shadow-md"
-              : "text-slate-600 hover:bg-slate-100"
-          }`}
-        >
-          <Trophy size={18} />
-          <span>Simulasi CBT Terjadwal</span>
-        </button>
-      </div>
-
-      {/* CONTENT: TAB BERTINGKAT */}
-      {activeTab === "bertingkat" && (
-        <div className="space-y-6">
-          {/* SUBJECT SELECTOR */}
-          <div>
-            <div className="flex items-center justify-between mb-2">
-              <label className="block text-xs font-black text-slate-500 uppercase tracking-wider">
-                3 Mata Pelajaran Resmi TKA (10 Paket per Mapel = Total 30 Paket):
-              </label>
-              <span className="text-xs font-bold text-blue-600 bg-blue-50 px-2.5 py-0.5 rounded-full">
-                3 Mapel Wajib TKA
-              </span>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {tkaMemberSubjects.map((sub) => {
-                const isSelected = selectedSubjectId === sub.id;
-                return (
-                  <button
-                    key={sub.id}
-                    onClick={() => setSelectedSubjectId(sub.id)}
-                    className={`text-left p-4 rounded-3xl border transition-all ${
-                      isSelected
-                        ? "border-blue-600 bg-blue-50/70 shadow-md ring-2 ring-blue-500/20"
-                        : "border-slate-200 bg-white hover:border-slate-300 hover:shadow-sm"
-                    }`}
-                  >
-                    <div className="flex items-center justify-between mb-2">
-                      <span className={`text-[11px] font-black px-2.5 py-0.5 rounded-full ${sub.color.badge}`}>
-                        {sub.jenjang}
-                      </span>
-                      {isSelected && (
-                        <span className="w-2.5 h-2.5 rounded-full bg-blue-600 animate-pulse"></span>
-                      )}
-                    </div>
-                    <h3 className="text-sm font-black text-slate-900 leading-snug">
-                      {sub.name}
-                    </h3>
-                    <p className="text-[11px] text-slate-500 mt-1 line-clamp-2">
-                      {sub.tagline}
-                    </p>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* ACTIVE SUBJECT HEADER & PROGRESS */}
-          <div className="bg-white rounded-3xl p-6 border border-slate-200 shadow-sm flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-            <div>
-              <div className="flex items-center gap-2">
-                <span className={`px-3 py-1 rounded-full text-xs font-bold ${activeSubject.color.badge}`}>
-                  {activeSubject.jenjang}
-                </span>
-                <span className="text-xs font-bold text-slate-400">• 10 Paket Bertingkat</span>
-              </div>
-              <h2 className="text-xl font-black text-slate-900 mt-1">
-                {activeSubject.name}
-              </h2>
-              <p className="text-xs text-slate-500 mt-0.5">
-                {activeSubject.tagline}
-              </p>
-            </div>
-
-            {/* Progress Meter */}
-            <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 min-w-[220px]">
-              <div className="flex justify-between items-center text-xs font-bold mb-1.5">
-                <span className="text-slate-600">Progres Kelulusan</span>
-                <span className="text-blue-600">{passedCount} / 10 Paket</span>
-              </div>
-              <div className="w-full bg-slate-200 h-2.5 rounded-full overflow-hidden">
-                <div
-                  className="bg-emerald-500 h-full rounded-full transition-all duration-500"
-                  style={{ width: `${(passedCount / 10) * 100}%` }}
-                ></div>
-              </div>
-              <span className="block text-[10px] text-slate-400 mt-1">
-                {passedCount === 10
-                  ? "Selamat! Seluruh paket berhasil dituntaskan!"
-                  : `Dapatkan nilai > 50 untuk membuka paket berikutnya.`}
-              </span>
-            </div>
-          </div>
-
-          {/* 10 PAKET LIST (GRID 2 KOLOM) */}
-          <div className="grid gap-4 md:grid-cols-2">
-            {pakets.map((paket) => {
-              const isUnlocked = isTKAPaketUnlocked(paket.subjectId, paket.paketNumber, progressMap);
-              const progress = progressMap[paket.id];
-              const isPassed = progress && (progress.passed || progress.score > 50);
-
-              let difficultyColor = "bg-blue-100 text-blue-800";
-              if (paket.paketNumber >= 4 && paket.paketNumber <= 7) {
-                difficultyColor = "bg-amber-100 text-amber-800";
-              } else if (paket.paketNumber >= 8) {
-                difficultyColor = "bg-rose-100 text-rose-800";
-              }
-
+      {/* FILTER 1: TAB JENJANG (SD, SMP, SMA) */}
+      <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm space-y-4">
+        <div>
+          <label className="block text-xs font-black uppercase tracking-wider text-slate-500 mb-2">
+            Pilih Jenjang Sekolah:
+          </label>
+          <div className="grid grid-cols-3 gap-3">
+            {ALL_JENJANG.map((j) => {
+              const isSelected = selectedJenjang === j.id;
               return (
-                <div
-                  key={paket.id}
-                  className={`rounded-3xl border p-5 transition-all flex flex-col justify-between ${
-                    isUnlocked
-                      ? isPassed
-                        ? "border-emerald-300 bg-white hover:shadow-md"
-                        : "border-slate-200 bg-white hover:border-blue-400 hover:shadow-md"
-                      : "border-slate-200 bg-slate-50/70 opacity-75"
+                <button
+                  key={j.id}
+                  onClick={() => setSelectedJenjang(j.id)}
+                  className={`flex items-center justify-center gap-2.5 py-3 px-4 rounded-2xl border font-black text-sm transition ${
+                    isSelected
+                      ? "border-indigo-600 bg-indigo-600 text-white shadow-md shadow-indigo-600/20"
+                      : "border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100"
                   }`}
                 >
-                  <div>
-                    {/* Header Card: Nomor Paket & Status Badge */}
-                    <div className="flex items-center justify-between gap-2">
-                      <div className="flex items-center gap-2">
-                        <span
-                          className={`w-7 h-7 rounded-xl flex items-center justify-center font-black text-xs ${
-                            isUnlocked
-                              ? "bg-blue-600 text-white"
-                              : "bg-slate-300 text-slate-600"
-                          }`}
-                        >
-                          {paket.paketNumber}
-                        </span>
-                        <span className={`text-[11px] font-black px-2.5 py-0.5 rounded-full ${difficultyColor}`}>
-                          {paket.levelKesukaran}
-                        </span>
-                      </div>
-
-                      {/* Status Badges */}
-                      {isPassed ? (
-                        <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-black bg-emerald-100 text-emerald-800">
-                          <CheckCircle2 size={13} />
-                          <span>Lulus ({progress.score}/100)</span>
-                        </span>
-                      ) : progress ? (
-                        <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-black bg-amber-100 text-amber-800">
-                          <AlertCircle size={13} />
-                          <span>Belum Lulus ({progress.score}/100)</span>
-                        </span>
-                      ) : isUnlocked ? (
-                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-blue-100 text-blue-800">
-                          <Unlock size={13} />
-                          <span>Terbuka</span>
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-slate-200 text-slate-600">
-                          <Lock size={13} />
-                          <span>Terkunci</span>
-                        </span>
-                      )}
-                    </div>
-
-                    {/* Title & Desc */}
-                    <h3 className="mt-3 text-base font-black text-slate-900 leading-snug">
-                      {paket.title}
-                    </h3>
-                    <p className="mt-1 text-xs text-slate-500 leading-relaxed">
-                      {paket.description}
-                    </p>
-
-                    {/* Specs Pills */}
-                    <div className="mt-4 flex flex-wrap items-center gap-3 text-xs text-slate-600 bg-slate-50 p-2.5 rounded-2xl border border-slate-100">
-                      <div className="flex items-center gap-1">
-                        <FileQuestion size={14} className="text-slate-400" />
-                        <span>{paket.totalSoal} Soal</span>
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <Timer size={14} className="text-slate-400" />
-                        <span>{paket.durasiMenit} Menit</span>
-                      </div>
-                      <div className="flex items-center gap-1 font-bold text-emerald-600">
-                        <Target size={14} />
-                        <span>Syarat: &gt; 50</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Action Buttons */}
-                  <div className="mt-5 pt-3 border-t border-slate-100">
-                    {isUnlocked ? (
-                      <div className="flex flex-wrap items-center gap-2">
-                        <Link
-                          href={`/dashboard/member/tka/${paket.id}`}
-                          className={`flex-1 flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl text-xs font-black text-white transition shadow-sm ${
-                            isPassed
-                              ? "bg-slate-800 hover:bg-slate-900"
-                              : "bg-blue-600 hover:bg-blue-700"
-                          }`}
-                        >
-                          <span>{progress ? "Kerjakan Ulang" : "Mulai Kerjakan"}</span>
-                          <ArrowRight size={14} />
-                        </Link>
-
-                        {progress && (
-                          <Link
-                            href={`/dashboard/member/tka/${paket.id}`}
-                            className="flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl text-xs font-bold bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200 transition"
-                            title="Buka Pembahasan Soal"
-                          >
-                            <BookOpen size={14} />
-                            <span>Pembahasan</span>
-                          </Link>
-                        )}
-                      </div>
-                    ) : (
-                      <div className="flex items-center gap-2 text-xs text-slate-500 bg-slate-100/80 p-2.5 rounded-xl border border-slate-200">
-                        <Lock size={14} className="text-slate-400 shrink-0" />
-                        <span>
-                          Dapatkan nilai <strong>&gt; 50</strong> pada <strong>Paket {paket.paketNumber - 1}</strong> untuk membuka.
-                        </span>
-                      </div>
-                    )}
-                  </div>
-                </div>
+                  <GraduationCap size={18} />
+                  <span>{j.name}</span>
+                </button>
               );
             })}
           </div>
         </div>
-      )}
 
-      {/* CONTENT: TAB SIMULASI CBT TERJADWAL */}
-      {activeTab === "simulasi" && (
-        <div className="grid gap-5 md:grid-cols-2">
-          {generalTryouts.map((item) => (
+        {/* FILTER 2: TAB MAPEL */}
+        <div className="border-t border-slate-100 pt-4">
+          <label className="block text-xs font-black uppercase tracking-wider text-slate-500 mb-2">
+            Pilih Mata Pelajaran ({selectedJenjang}):
+          </label>
+          <div className="flex flex-wrap gap-2.5">
+            {subjectsInJenjang.map((sub) => {
+              const isSelected = selectedSubjectId === sub.id;
+              return (
+                <button
+                  key={sub.id}
+                  onClick={() => setSelectedSubjectId(sub.id)}
+                  className={`inline-flex items-center gap-2 rounded-2xl px-4 py-2.5 text-xs font-black transition ${
+                    isSelected
+                      ? "bg-purple-600 text-white shadow-md shadow-purple-600/25"
+                      : "border border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+                  }`}
+                >
+                  <BookOpen size={14} />
+                  <span>{sub.name}</span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+
+      {/* BANNER TRYOUT INFO */}
+      <div className="rounded-3xl bg-gradient-to-r from-purple-900 via-indigo-900 to-blue-900 p-6 text-white shadow-md flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <span className="text-[10px] font-black uppercase tracking-wider text-purple-300">
+            {selectedJenjang} &bull; {activeSubject?.name}
+          </span>
+          <h2 className="text-xl font-black mt-0.5">3 Paket Simulasi Ujian Tryout</h2>
+          <p className="text-xs text-purple-200 max-w-xl mt-1">
+            Simulasi kondisi ujian sebenarnya dengan timer hitung mundur 45 menit, lembar jawaban ragu-ragu, dan perolehan skor langsung.
+          </p>
+        </div>
+        <div className="flex items-center gap-3 bg-white/10 px-4 py-2.5 rounded-2xl backdrop-blur border border-white/20 shrink-0">
+          <Clock size={20} className="text-amber-400" />
+          <div>
+            <div className="text-xs font-black">Waktu Ujian: 45 Menit</div>
+            <div className="text-[11px] text-purple-200">20 Soal per Paket</div>
+          </div>
+        </div>
+      </div>
+
+      {/* GRID 3 PAKET TRYOUT RESMI */}
+      <div className="grid gap-6 sm:grid-cols-3">
+        {tryoutPakets.map((to) => {
+          const progress = progressMap[to.id];
+          const hasAttempted = !!progress;
+          const isPassed = hasAttempted && (progress.passed || progress.score > 50);
+
+          return (
             <div
-              key={item.id}
-              className="flex flex-col justify-between rounded-3xl border border-slate-200 bg-white p-6 shadow-sm transition hover:-translate-y-1 hover:shadow-md"
+              key={to.id}
+              className="flex flex-col justify-between rounded-3xl border border-slate-200 bg-white p-6 shadow-sm hover:shadow-lg hover:border-purple-400 transition"
             >
-              <div>
-                <div className="flex items-center justify-between gap-3">
-                  <span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-bold text-blue-700">
-                    {item.subjectName}
+              <div className="space-y-4">
+                {/* TOP BADGE */}
+                <div className="flex items-center justify-between">
+                  <span className="flex h-9 w-9 items-center justify-center rounded-2xl bg-purple-100 text-purple-800 font-black text-sm">
+                    #{to.paketNumber}
                   </span>
-                  {item.badge && (
-                    <span className="rounded-full bg-amber-100 px-3 py-1 text-[11px] font-black text-amber-800">
-                      {item.badge}
+                  <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-3 py-1 text-[11px] font-black text-amber-800">
+                    <Clock size={12} />
+                    45 Menit
+                  </span>
+                </div>
+
+                <div>
+                  <h3 className="text-lg font-black text-slate-900 leading-tight">
+                    {to.title}
+                  </h3>
+                  <p className="text-xs text-slate-500 mt-2 line-clamp-3 leading-relaxed">
+                    {to.description}
+                  </p>
+                </div>
+
+                {/* SPECS */}
+                <div className="space-y-2 rounded-2xl bg-slate-50 p-3.5 border border-slate-100 text-xs">
+                  <div className="flex items-center justify-between font-bold text-slate-700">
+                    <span className="flex items-center gap-1.5 text-slate-500">
+                      <FileQuestion size={13} className="text-blue-500" />
+                      Jumlah Soal:
                     </span>
-                  )}
-                </div>
-
-                <h3 className="mt-4 text-lg font-black text-slate-900">{item.title}</h3>
-                <p className="mt-2 text-xs leading-relaxed text-slate-500">{item.description}</p>
-
-                <div className="mt-5 grid grid-cols-3 gap-2 rounded-2xl bg-slate-50 p-3 text-center text-xs">
-                  <div>
-                    <span className="block text-slate-400">Jumlah Soal</span>
-                    <span className="font-bold text-slate-800">{item.totalQuestions} Soal</span>
+                    <span>20 Soal (PG, PGK, BS)</span>
                   </div>
-                  <div className="border-x border-slate-200">
-                    <span className="block text-slate-400">Durasi</span>
-                    <span className="font-bold text-slate-800">{item.durationMinutes} Menit</span>
+                  <div className="flex items-center justify-between font-bold text-slate-700">
+                    <span className="flex items-center gap-1.5 text-slate-500">
+                      <Timer size={13} className="text-amber-500" />
+                      Durasi Waktu:
+                    </span>
+                    <span>45 Menit (CBT)</span>
                   </div>
-                  <div>
-                    <span className="block text-slate-400">Passing Grade</span>
-                    <span className="font-bold text-emerald-600">{item.passingScore}%</span>
+                  <div className="flex items-center justify-between font-bold text-slate-700">
+                    <span className="flex items-center gap-1.5 text-slate-500">
+                      <Award size={13} className="text-emerald-500" />
+                      Nilai Kelulusan:
+                    </span>
+                    <span>&gt; {to.passingScore} Poin</span>
                   </div>
                 </div>
+
+                {/* PROGRESS / RESULT IF ATTEMPTED */}
+                {hasAttempted && (
+                  <div
+                    className={`rounded-2xl p-3 border text-xs flex items-center justify-between ${
+                      isPassed
+                        ? "bg-emerald-50 border-emerald-200 text-emerald-900"
+                        : "bg-amber-50 border-amber-200 text-amber-900"
+                    }`}
+                  >
+                    <span className="font-bold">Skor Ujian Terakhir:</span>
+                    <span className="text-sm font-black">{progress.score} / 100</span>
+                  </div>
+                )}
               </div>
 
-              <Link
-                href={`/dashboard/member/tryout/${item.id}`}
-                className="mt-6 flex items-center justify-center gap-2 rounded-xl bg-orange-500 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-orange-600"
-              >
-                <Trophy size={16} />
-                <span>Mulai Ujian Sekarang</span>
-                <ArrowRight size={16} />
-              </Link>
+              {/* ACTION BUTTON */}
+              <div className="pt-6">
+                <Link
+                  href={`/dashboard/member/tka/${to.id}`}
+                  className="w-full flex items-center justify-center gap-2 rounded-2xl bg-purple-600 hover:bg-purple-700 py-3 px-4 text-xs font-black text-white shadow-md shadow-purple-600/20 transition"
+                >
+                  <span>{hasAttempted ? "Coba Lagi (Ulangi Ujian)" : "Mulai Tryout (45 Menit)"}</span>
+                  <ArrowRight size={14} />
+                </Link>
+              </div>
             </div>
-          ))}
-        </div>
-      )}
+          );
+        })}
+      </div>
     </div>
   );
 }

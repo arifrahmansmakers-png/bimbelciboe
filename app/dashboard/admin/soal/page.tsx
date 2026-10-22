@@ -21,6 +21,10 @@ import {
   Award,
   ChevronRight,
   Filter,
+  GraduationCap,
+  Calculator,
+  Globe,
+  Atom,
 } from "lucide-react";
 import {
   getAllCustomPakets,
@@ -33,12 +37,27 @@ import {
   deleteCustomPaket,
   resetCustomPaketsToDefault,
 } from "@/data/tka_member/store";
-import { tkaMemberSubjects, TKAPaket, TKASoal, TipeSoalTKA } from "@/data/tka_member";
+import {
+  ALL_JENJANG,
+  ALL_SUBJECTS,
+  getSubjectsByJenjang,
+  TKAPaket,
+  TKASoal,
+  TipeSoalTKA,
+} from "@/data/tka_member";
 
 export default function AdminSoalPage() {
-  // State Filter Mapel & Paket
-  const [selectedSubjectId, setSelectedSubjectId] = useState<string>("matematika");
+  // STEP 1: Pilih Jenjang
+  const [selectedJenjang, setSelectedJenjang] = useState<"SD" | "SMP" | "SMA">("SD");
+
+  // STEP 2: Pilih Mapel (difilter berdasarkan jenjang)
+  const [selectedSubjectId, setSelectedSubjectId] = useState<string>("sd-matematika");
+
+  // STEP 3: Pilih Kategori & Paket
+  const [selectedCategory, setSelectedCategory] = useState<"latihan" | "tryout">("latihan");
   const [selectedPaketId, setSelectedPaketId] = useState<string>("");
+
+  // Search keyword di dalam butir soal
   const [searchKeyword, setSearchKeyword] = useState<string>("");
 
   // Bank Data dari Store
@@ -58,29 +77,26 @@ export default function AdminSoalPage() {
 
   // Form State Soal
   const [formTipe, setFormTipe] = useState<TipeSoalTKA>("PG");
-  const [formStimulus, setFormStimulus] = useState("");
-  const [formPertanyaan, setFormPertanyaan] = useState("");
-  const [formOpsiA, setFormOpsiA] = useState("");
-  const [formOpsiB, setFormOpsiB] = useState("");
-  const [formOpsiC, setFormOpsiC] = useState("");
-  const [formOpsiD, setFormOpsiD] = useState("");
-  const [formKunciPG, setFormKunciPG] = useState("A");
+  const [formStimulus, setFormStimulus] = useState<string>("");
+  const [formPertanyaan, setFormPertanyaan] = useState<string>("");
+  const [formOpsi, setFormOpsi] = useState<string[]>(["", "", "", ""]);
+  const [formKunciPG, setFormKunciPG] = useState<string>("A");
   const [formKunciMCMA, setFormKunciMCMA] = useState<string[]>(["A"]);
-  const [formKunciBS, setFormKunciBS] = useState("BENAR");
-  const [formPembahasan, setFormPembahasan] = useState("");
-  const [formKonsepKunci, setFormKonsepKunci] = useState("");
+  const [formKunciBS, setFormKunciBS] = useState<string>("BENAR");
+  const [formPembahasan, setFormPembahasan] = useState<string>("");
+  const [formKonsepKunci, setFormKonsepKunci] = useState<string>("");
 
   // Form State Tambah Paket Baru
   const [newPaketTitle, setNewPaketTitle] = useState("");
   const [newPaketDesc, setNewPaketDesc] = useState("");
-  const [newPaketJenjang, setNewPaketJenjang] = useState<"SD/MI" | "SMP/MTs" | "SMA">("SD/MI");
+  const [newPaketCategory, setNewPaketCategory] = useState<"latihan" | "tryout">("latihan");
   const [newPaketLevel, setNewPaketLevel] = useState<
     "Level 1: Dasar & Pemahaman" | "Level 2: Aplikasi & Terapan" | "Level 3: Analisis & HOTS Mahir"
   >("Level 1: Dasar & Pemahaman");
-  const [newPaketDurasi, setNewPaketDurasi] = useState(25);
-  const [newPaketPassing, setNewPaketPassing] = useState(50);
+  const [newPaketDuration, setNewPaketDuration] = useState<number>(30);
+  const [newPaketPassingScore, setNewPaketPassingScore] = useState<number>(50);
 
-  // Muat data awal
+  // Load bank soal dari store
   const refreshData = () => {
     const data = getAllCustomPakets();
     setAllPakets(data);
@@ -88,24 +104,43 @@ export default function AdminSoalPage() {
 
   useEffect(() => {
     refreshData();
-    const handleUpdate = () => refreshData();
+
+    const handleUpdate = () => {
+      refreshData();
+    };
+
     window.addEventListener("tka_bank_soal_updated", handleUpdate);
     return () => window.removeEventListener("tka_bank_soal_updated", handleUpdate);
   }, []);
 
-  // Filter paket berdasarkan subject yang dipilih
-  const paketsInSubject = allPakets.filter((p) => p.subjectId === selectedSubjectId);
+  // Update daftar mapel saat jenjang berubah
+  const subjectsInJenjang = getSubjectsByJenjang(selectedJenjang);
 
-  // Atur selectedPaketId default jika kosong atau tidak sesuai subject
   useEffect(() => {
-    if (paketsInSubject.length > 0) {
-      if (!selectedPaketId || !paketsInSubject.some((p) => p.id === selectedPaketId)) {
-        setSelectedPaketId(paketsInSubject[0].id);
+    if (subjectsInJenjang.length > 0) {
+      if (!subjectsInJenjang.some((s) => s.id === selectedSubjectId)) {
+        setSelectedSubjectId(subjectsInJenjang[0].id);
+      }
+    }
+  }, [selectedJenjang, subjectsInJenjang, selectedSubjectId]);
+
+  // Paket dalam mapel dan kategori terpilih
+  const paketsInFilter = allPakets.filter((p) => {
+    const isSubjectMatch = p.subjectId === selectedSubjectId || p.subjectId === selectedSubjectId.replace("sd-", "");
+    const isCategoryMatch = (p.category || "latihan") === selectedCategory;
+    return isSubjectMatch && isCategoryMatch;
+  }).sort((a, b) => a.paketNumber - b.paketNumber);
+
+  // Auto-select paket pertama jika paket terpilih tidak ada di filter
+  useEffect(() => {
+    if (paketsInFilter.length > 0) {
+      if (!selectedPaketId || !paketsInFilter.some((p) => p.id === selectedPaketId)) {
+        setSelectedPaketId(paketsInFilter[0].id);
       }
     } else {
       setSelectedPaketId("");
     }
-  }, [selectedSubjectId, paketsInSubject]);
+  }, [selectedSubjectId, selectedCategory, paketsInFilter, selectedPaketId]);
 
   // Paket yang sedang aktif diedit
   const activePaket = allPakets.find((p) => p.id === selectedPaketId);
@@ -113,37 +148,44 @@ export default function AdminSoalPage() {
   // Filter soal dalam paket aktif dengan pencarian
   const filteredSoalList = activePaket
     ? activePaket.soalList.filter((s) => {
-        if (!searchKeyword) return true;
+        if (!searchKeyword.trim()) return true;
         const q = searchKeyword.toLowerCase();
         return (
           s.pertanyaan.toLowerCase().includes(q) ||
           (s.stimulus && s.stimulus.toLowerCase().includes(q)) ||
-          s.pembahasan.toLowerCase().includes(q)
+          s.pembahasan.toLowerCase().includes(q) ||
+          (s.konsepKunci && s.konsepKunci.toLowerCase().includes(q))
         );
       })
     : [];
 
   const showToast = (text: string, type: "success" | "error" = "success") => {
     setNotification({ text, type });
-    setTimeout(() => setNotification(null), 3500);
+    setTimeout(() => setNotification(null), 4000);
   };
 
-  // Buka Modal Tambah Soal
-  const handleOpenAddSoal = () => {
-    setSoalModalMode("add");
-    setEditingSoalId(null);
+  // Reset Form Soal
+  const resetSoalForm = () => {
     setFormTipe("PG");
     setFormStimulus("");
     setFormPertanyaan("");
-    setFormOpsiA("");
-    setFormOpsiB("");
-    setFormOpsiC("");
-    setFormOpsiD("");
+    setFormOpsi(["", "", "", ""]);
     setFormKunciPG("A");
     setFormKunciMCMA(["A"]);
     setFormKunciBS("BENAR");
     setFormPembahasan("");
     setFormKonsepKunci("");
+    setEditingSoalId(null);
+  };
+
+  // Buka Modal Tambah Soal
+  const handleOpenAddSoal = () => {
+    if (!activePaket) {
+      showToast("Pilih paket soal terlebih dahulu!", "error");
+      return;
+    }
+    resetSoalForm();
+    setSoalModalMode("add");
     setShowSoalModal(true);
   };
 
@@ -154,90 +196,102 @@ export default function AdminSoalPage() {
     setFormTipe(soal.tipe);
     setFormStimulus(soal.stimulus || "");
     setFormPertanyaan(soal.pertanyaan);
-    setFormOpsiA(soal.opsi?.[0] || "");
-    setFormOpsiB(soal.opsi?.[1] || "");
-    setFormOpsiC(soal.opsi?.[2] || "");
-    setFormOpsiD(soal.opsi?.[3] || "");
+    setFormOpsi(soal.opsi ? [...soal.opsi] : ["", "", "", ""]);
 
     if (soal.tipe === "PG") {
       setFormKunciPG(typeof soal.kunci === "string" ? soal.kunci : "A");
+    } else if (soal.tipe === "MCMA") {
+      setFormKunciMCMA(Array.isArray(soal.kunci) ? soal.kunci : ["A"]);
     } else if (soal.tipe === "BS") {
       setFormKunciBS(typeof soal.kunci === "string" ? soal.kunci : "BENAR");
-    } else if (soal.tipe === "MCMA") {
-      setFormKunciMCMA(Array.isArray(soal.kunci) ? soal.kunci : [soal.kunci]);
     }
 
-    setFormPembahasan(soal.pembahasan || "");
+    setFormPembahasan(soal.pembahasan);
     setFormKonsepKunci(soal.konsepKunci || "");
     setShowSoalModal(true);
   };
 
-  // Simpan Tambah / Edit Soal
-  const handleSaveSoal = (e: React.FormEvent) => {
-    e.preventDefault();
+  // Simpan Soal (Tambah atau Edit)
+  const handleSaveSoal = () => {
     if (!activePaket) return;
-
     if (!formPertanyaan.trim()) {
-      showToast("Teks pertanyaan tidak boleh kosong!", "error");
+      showToast("Pertanyaan soal tidak boleh kosong!", "error");
+      return;
+    }
+    if (!formPembahasan.trim()) {
+      showToast("Pembahasan wajib diisi untuk panduan siswa!", "error");
       return;
     }
 
-    let opsi: string[] | undefined = undefined;
-    let kunci: string | string[] = formKunciPG;
+    let finalKunci: string | string[] = "A";
+    let finalOpsi: string[] = [];
 
-    if (formTipe === "PG" || formTipe === "MCMA") {
-      opsi = [formOpsiA.trim(), formOpsiB.trim(), formOpsiC.trim(), formOpsiD.trim()];
-      if (formTipe === "MCMA") {
-        if (formKunciMCMA.length === 0) {
-          showToast("Pilih minimal 1 kunci jawaban untuk Pilihan Ganda Kompleks!", "error");
-          return;
-        }
-        kunci = formKunciMCMA;
-      } else {
-        kunci = formKunciPG;
+    if (formTipe === "PG") {
+      finalKunci = formKunciPG;
+      finalOpsi = formOpsi.map((o) => o.trim()).filter((o) => o.length > 0);
+      if (finalOpsi.length < 2) {
+        showToast("Pilihan Ganda harus memiliki minimal 2 opsi jawaban!", "error");
+        return;
+      }
+    } else if (formTipe === "MCMA") {
+      finalKunci = formKunciMCMA;
+      finalOpsi = formOpsi.map((o) => o.trim()).filter((o) => o.length > 0);
+      if (finalKunci.length === 0) {
+        showToast("Pilih minimal satu kunci jawaban untuk Pilihan Ganda Kompleks!", "error");
+        return;
       }
     } else if (formTipe === "BS") {
-      opsi = ["BENAR", "SALAH"];
-      kunci = formKunciBS;
+      finalKunci = formKunciBS;
+      finalOpsi = ["BENAR", "SALAH"];
     }
 
-    const payload = {
+    const payload: Omit<TKASoal, "id" | "nomor"> = {
       tipe: formTipe,
       stimulus: formStimulus.trim() || undefined,
       pertanyaan: formPertanyaan.trim(),
-      opsi,
-      kunci,
-      pembahasan: formPembahasan.trim() || "Pembahasan belum ditambahkan.",
+      opsi: finalOpsi,
+      kunci: finalKunci,
+      pembahasan: formPembahasan.trim(),
       konsepKunci: formKonsepKunci.trim() || undefined,
     };
 
     if (soalModalMode === "add") {
-      addCustomSoal(activePaket.id, payload);
-      showToast("Soal baru berhasil ditambahkan ke " + activePaket.title);
-    } else if (editingSoalId) {
-      updateCustomSoal(activePaket.id, editingSoalId, payload);
-      showToast("Soal berhasil diperbarui!");
+      const added = addCustomSoal(activePaket.id, payload);
+      if (added) {
+        showToast(`Soal #${added.nomor} berhasil ditambahkan ke ${activePaket.title}!`);
+        setShowSoalModal(false);
+      } else {
+        showToast("Gagal menambahkan soal", "error");
+      }
+    } else if (soalModalMode === "edit" && editingSoalId) {
+      const ok = updateCustomSoal(activePaket.id, editingSoalId, payload);
+      if (ok) {
+        showToast("Perubahan butir soal berhasil disimpan!");
+        setShowSoalModal(false);
+      } else {
+        showToast("Gagal memperbarui soal", "error");
+      }
     }
-
-    setShowSoalModal(false);
-    refreshData();
   };
 
   // Hapus Soal
-  const handleDeleteSoal = (soalId: string) => {
+  const handleDeleteSoal = (soalId: string, nomor: number) => {
     if (!activePaket) return;
-    if (confirm("Apakah Anda yakin ingin menghapus butir soal ini? Tindakan ini tidak dapat dibatalkan.")) {
-      deleteCustomSoal(activePaket.id, soalId);
-      showToast("Soal berhasil dihapus!");
-      refreshData();
+    if (confirm(`Apakah Anda yakin ingin menghapus Soal #${nomor} dari ${activePaket.title}?`)) {
+      const ok = deleteCustomSoal(activePaket.id, soalId);
+      if (ok) {
+        showToast(`Soal #${nomor} berhasil dihapus.`);
+      } else {
+        showToast("Gagal menghapus soal", "error");
+      }
     }
   };
 
-  // Buka Modal Pindah Soal
+  // Buka Modal Pindah Paket
   const handleOpenMoveModal = (soalId: string) => {
     setMovingSoalId(soalId);
     // Cari paket selain paket aktif
-    const otherPakets = allPakets.filter((p) => p.id !== selectedPaketId);
+    const otherPakets = allPakets.filter((p) => p.id !== activePaket?.id);
     if (otherPakets.length > 0) {
       setTargetPaketId(otherPakets[0].id);
     }
@@ -246,848 +300,841 @@ export default function AdminSoalPage() {
 
   // Eksekusi Pindah Soal
   const handleExecuteMove = () => {
-    if (!selectedPaketId || !targetPaketId || !movingSoalId) return;
+    if (!activePaket || !movingSoalId || !targetPaketId) return;
 
-    const ok = moveCustomSoal(selectedPaketId, targetPaketId, movingSoalId);
+    const ok = moveCustomSoal(activePaket.id, targetPaketId, movingSoalId);
     if (ok) {
-      showToast("Soal berhasil dipindahkan ke paket tujuan!");
+      const target = allPakets.find((p) => p.id === targetPaketId);
+      showToast(`Soal berhasil dipindahkan ke ${target?.title || "paket target"}!`);
       setShowMoveModal(false);
-      refreshData();
     } else {
-      showToast("Gagal memindahkan soal.", "error");
+      showToast("Gagal memindahkan soal", "error");
     }
   };
 
-  // Buat Paket Baru
-  const handleCreateNewPaket = (e: React.FormEvent) => {
-    e.preventDefault();
+  // Simpan Paket Baru
+  const handleCreateNewPaket = () => {
     if (!newPaketTitle.trim()) {
-      showToast("Nama paket tidak boleh kosong!", "error");
+      showToast("Judul paket wajib diisi!", "error");
       return;
     }
 
-    const activeSub = tkaMemberSubjects.find((s) => s.id === selectedSubjectId);
-    const mapelName = activeSub?.name || "Mata Pelajaran TKA";
+    const currentPakets = allPakets.filter(
+      (p) => p.subjectId === selectedSubjectId && (p.category || "latihan") === newPaketCategory
+    );
+    const nextNum = currentPakets.length + 1;
+    const currentSubject = ALL_SUBJECTS.find((s) => s.id === selectedSubjectId);
 
-    const created = addCustomPaket({
+    const jenjangMapping: Record<string, "SD/MI" | "SMP/MTs" | "SMA"> = {
+      SD: "SD/MI",
+      SMP: "SMP/MTs",
+      SMA: "SMA",
+    };
+
+    addCustomPaket({
       subjectId: selectedSubjectId,
-      mapelName,
-      jenjang: newPaketJenjang,
+      jenjang: jenjangMapping[selectedJenjang] || "SD/MI",
+      mapelName: currentSubject?.name || "Mata Pelajaran",
+      category: newPaketCategory,
+      paketNumber: nextNum,
       title: newPaketTitle.trim(),
-      description: newPaketDesc.trim() || "Paket soal latihan kemampuan akademik terstandar.",
+      description: newPaketDesc.trim() || `Paket baru untuk ${currentSubject?.name}`,
       levelKesukaran: newPaketLevel,
-      durasiMenit: Number(newPaketDurasi) || 25,
-      passingScore: Number(newPaketPassing) || 50,
+      durasiMenit: newPaketDuration,
+      passingScore: newPaketPassingScore,
     });
 
-    showToast("Paket baru berhasil dibuat: " + created.title);
+    showToast(`Paket baru "${newPaketTitle}" berhasil ditambahkan!`);
     setShowAddPaketModal(false);
     setNewPaketTitle("");
     setNewPaketDesc("");
-    refreshData();
-    setSelectedPaketId(created.id);
   };
 
-  // Hapus Paket
-  const handleDeleteCurrentPaket = () => {
-    if (!activePaket) return;
-    if (
-      confirm(
-        `PERINGATAN: Apakah Anda yakin ingin menghapus '${activePaket.title}' beserta ${activePaket.totalSoal} butir soal di dalamnya?`
-      )
-    ) {
-      deleteCustomPaket(activePaket.id);
-      showToast("Paket berhasil dihapus!");
-      refreshData();
-    }
-  };
-
-  // Reset ke Default
+  // Reset ke Seed Bawaan
   const handleResetDefault = () => {
     if (
       confirm(
-        "PERINGATAN: Reset akan mengembalikan seluruh bank soal ke versi default awal sistem (semua editan kustom admin akan dihapus). Lanjutkan?"
+        "PERINGATAN: Apakah Anda yakin ingin mereset seluruh bank soal ke bawaan kurikulum standar? Seluruh perubahan edit soal kustom akan dikembalikan."
       )
     ) {
       resetCustomPaketsToDefault();
-      showToast("Bank soal berhasil di-reset ke versi awal sistem!");
-      refreshData();
+      showToast("Bank soal berhasil dikembalikan ke default!");
     }
   };
 
+  // Active Subject Meta
+  const activeSubjectMeta = ALL_SUBJECTS.find((s) => s.id === selectedSubjectId) || subjectsInJenjang[0];
+
   return (
-    <div className="space-y-8 max-w-7xl mx-auto p-4 sm:p-6 lg:p-8 pb-16">
-      {/* Toast Notifikasi */}
+    <div className="space-y-6 max-w-7xl mx-auto p-4 sm:p-6 lg:p-8">
+      {/* TOAST NOTIFIKASI */}
       {notification && (
         <div
-          className={`fixed bottom-6 right-6 z-50 flex items-center gap-2 px-5 py-3 rounded-2xl text-white font-bold shadow-2xl transition-all animate-in slide-in-from-bottom-5 ${
-            notification.type === "success" ? "bg-emerald-600" : "bg-rose-600"
+          className={`fixed top-5 right-5 z-50 flex items-center gap-3 px-5 py-3.5 rounded-2xl shadow-xl text-sm font-semibold transition-all ${
+            notification.type === "success"
+              ? "bg-emerald-600 text-white shadow-emerald-600/30"
+              : "bg-red-600 text-white shadow-red-600/30"
           }`}
         >
           {notification.type === "success" ? <CheckCircle2 size={18} /> : <AlertTriangle size={18} />}
           <span>{notification.text}</span>
+          <button onClick={() => setNotification(null)} className="ml-2 hover:opacity-75">
+            <X size={16} />
+          </button>
         </div>
       )}
 
-      {/* HEADER BANNER */}
-      <section className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-[#0f2747] via-[#173b63] to-[#24527d] p-6 text-white shadow-xl md:p-8">
-        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
-          <div className="max-w-2xl">
-            <div className="mb-3 inline-flex items-center gap-2 rounded-full bg-white/10 px-3.5 py-1 text-xs font-semibold backdrop-blur">
-              <Sparkles size={14} className="text-amber-300" />
-              <span>Human-in-the-Loop Content Management</span>
-            </div>
-            <h1 className="text-2xl sm:text-3xl font-black tracking-tight">
-              Kelola & Kurasi Bank Soal TKA
-            </h1>
-            <p className="mt-2 text-sm text-blue-100 leading-relaxed">
-              Kaji dan sempurnakan butir soal secara manual. Anda memiliki akses penuh untuk menambah, mengedit teks bacaan &amp; pembahasan, menghapus, memindahkan soal antarpaket, hingga membuat paket soal baru.
+      {/* HEADER UTAMA */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div className="flex items-center gap-3">
+          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-indigo-600 text-white shadow-lg shadow-indigo-600/20">
+            <FileText size={26} />
+          </div>
+          <div>
+            <h1 className="text-2xl sm:text-3xl font-black text-slate-900">Kelola Bank Soal & Kurasi</h1>
+            <p className="text-sm text-slate-500">
+              Pilih Jenjang &rarr; Pilih Mapel &rarr; Pilih Paket untuk mengedit, menambah, dan menyusun butir soal.
             </p>
           </div>
-
-          <div className="flex flex-wrap gap-2">
-            <button
-              onClick={() => setShowAddPaketModal(true)}
-              className="flex items-center gap-2 px-4 py-2.5 bg-amber-400 hover:bg-amber-300 text-slate-950 font-black text-xs rounded-xl shadow-md transition"
-            >
-              <Plus size={16} />
-              <span>Tambah Paket Baru</span>
-            </button>
-
-            <button
-              onClick={handleResetDefault}
-              className="flex items-center gap-2 px-3.5 py-2.5 bg-white/10 hover:bg-white/20 text-white font-bold text-xs rounded-xl border border-white/20 transition"
-              title="Kembalikan semua soal ke versi baku awal"
-            >
-              <RotateCcw size={14} />
-              <span>Reset Default</span>
-            </button>
-          </div>
         </div>
-      </section>
 
-      {/* FILTER 1: PILIH MATA PELAJARAN (TABS) */}
-      <div className="space-y-2">
-        <label className="block text-xs font-black text-slate-500 uppercase tracking-wider">
-          Langkah 1: Pilih Mata Pelajaran yang Ingin Diedit
-        </label>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-          {tkaMemberSubjects.map((sub) => {
-            const isSelected = selectedSubjectId === sub.id;
-            const countPaket = allPakets.filter((p) => p.subjectId === sub.id).length;
-
-            return (
-              <button
-                key={sub.id}
-                onClick={() => setSelectedSubjectId(sub.id)}
-                className={`text-left p-4 rounded-3xl border transition-all ${
-                  isSelected
-                    ? "border-blue-600 bg-blue-50/70 shadow-md ring-2 ring-blue-500/20"
-                    : "border-slate-200 bg-white hover:border-slate-300 hover:shadow-sm"
-                }`}
-              >
-                <div className="flex items-center justify-between mb-1.5">
-                  <span className={`text-[11px] font-black px-2.5 py-0.5 rounded-full ${sub.color.badge}`}>
-                    {sub.jenjang}
-                  </span>
-                  <span className="text-xs font-bold text-slate-500">{countPaket} Paket</span>
-                </div>
-                <h3 className="text-sm font-black text-slate-900 leading-snug">{sub.name}</h3>
-                <p className="text-[11px] text-slate-500 mt-1 line-clamp-1">{sub.tagline}</p>
-              </button>
-            );
-          })}
+        <div className="flex items-center gap-2">
+          <button
+            onClick={handleResetDefault}
+            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-xs font-bold text-slate-600 shadow-sm transition"
+            title="Kembalikan semua soal ke versi bawaan kurikulum"
+          >
+            <RotateCcw size={14} />
+            <span>Reset Default</span>
+          </button>
+          <button
+            onClick={() => setShowAddPaketModal(true)}
+            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-xs font-bold text-white shadow-md shadow-indigo-600/20 transition"
+          >
+            <Plus size={15} />
+            <span>+ Tambah Paket Baru</span>
+          </button>
         </div>
       </div>
 
-      {/* FILTER 2: PILIH PAKET SOAL DALAM MAPEL */}
-      <div className="bg-white rounded-3xl border border-slate-200 p-6 shadow-sm space-y-4">
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-          <div>
-            <label className="block text-xs font-black text-slate-500 uppercase tracking-wider mb-1">
-              Langkah 2: Pilih Paket Soal
+      {/* PANEL 3-LANGKAH PEMILIHAN HIERARKIS */}
+      <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm space-y-6">
+        {/* LANGKAH 1: PILIH JENJANG */}
+        <div>
+          <div className="flex items-center gap-2 mb-3">
+            <span className="flex h-6 w-6 items-center justify-center rounded-full bg-blue-600 text-white text-xs font-black">
+              1
+            </span>
+            <label className="text-xs font-black uppercase tracking-wider text-slate-700">
+              Pilih Jenjang Pendidikan:
             </label>
-            <div className="flex items-center gap-3">
-              <select
-                value={selectedPaketId}
-                onChange={(e) => setSelectedPaketId(e.target.value)}
-                className="px-4 py-2.5 rounded-2xl border border-slate-300 font-bold text-sm text-slate-800 bg-slate-50 focus:ring-2 focus:ring-blue-500 focus:outline-none min-w-[280px]"
-              >
-                {paketsInSubject.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    Paket {p.paketNumber}: {p.title} ({p.soalList.length} Soal)
-                  </option>
-                ))}
-              </select>
-
-              {activePaket && (
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            {ALL_JENJANG.map((jenjang) => {
+              const isSelected = selectedJenjang === jenjang.id;
+              return (
                 <button
-                  onClick={handleDeleteCurrentPaket}
-                  className="p-2.5 text-rose-600 hover:bg-rose-50 rounded-xl transition"
-                  title="Hapus paket ini"
+                  key={jenjang.id}
+                  onClick={() => setSelectedJenjang(jenjang.id)}
+                  className={`flex items-center justify-between p-4 rounded-2xl border text-left transition ${
+                    isSelected
+                      ? "border-blue-600 bg-blue-50/80 ring-2 ring-blue-600/20"
+                      : "border-slate-200 hover:border-slate-300 bg-slate-50/50"
+                  }`}
                 >
-                  <Trash2 size={18} />
+                  <div className="flex items-center gap-3">
+                    <div
+                      className={`flex h-10 w-10 items-center justify-center rounded-xl font-black text-sm ${
+                        isSelected ? "bg-blue-600 text-white" : "bg-white text-slate-700 border border-slate-200"
+                      }`}
+                    >
+                      {jenjang.id}
+                    </div>
+                    <div>
+                      <div className="font-black text-sm text-slate-900">{jenjang.name}</div>
+                      <div className="text-[11px] text-slate-500 font-medium">{jenjang.badge}</div>
+                    </div>
+                  </div>
+                  {isSelected && <CheckCircle2 size={18} className="text-blue-600 shrink-0" />}
                 </button>
-              )}
+              );
+            })}
+          </div>
+        </div>
+
+        {/* LANGKAH 2: PILIH MATA PELAJARAN */}
+        <div className="border-t border-slate-100 pt-5">
+          <div className="flex items-center gap-2 mb-3">
+            <span className="flex h-6 w-6 items-center justify-center rounded-full bg-emerald-600 text-white text-xs font-black">
+              2
+            </span>
+            <label className="text-xs font-black uppercase tracking-wider text-slate-700">
+              Pilih Mata Pelajaran ({selectedJenjang}):
+            </label>
+          </div>
+          <div className="flex flex-wrap gap-2.5">
+            {subjectsInJenjang.map((subject) => {
+              const isSelected = selectedSubjectId === subject.id;
+              return (
+                <button
+                  key={subject.id}
+                  onClick={() => setSelectedSubjectId(subject.id)}
+                  className={`flex items-center gap-2 px-4 py-2.5 rounded-2xl border text-xs font-black transition ${
+                    isSelected
+                      ? "border-emerald-600 bg-emerald-600 text-white shadow-sm shadow-emerald-600/30"
+                      : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+                  }`}
+                >
+                  <BookOpen size={14} className={isSelected ? "text-white" : "text-emerald-600"} />
+                  <span>{subject.name}</span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* LANGKAH 3: PILIH KATEGORI & PAKET SOAL */}
+        <div className="border-t border-slate-100 pt-5">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-3">
+            <div className="flex items-center gap-2">
+              <span className="flex h-6 w-6 items-center justify-center rounded-full bg-purple-600 text-white text-xs font-black">
+                3
+              </span>
+              <label className="text-xs font-black uppercase tracking-wider text-slate-700">
+                Pilih Kategori & Paket Soal:
+              </label>
+            </div>
+
+            {/* TAB KATEGORI: LATIHAN VS TRYOUT */}
+            <div className="inline-flex rounded-xl bg-slate-100 p-1">
+              <button
+                onClick={() => setSelectedCategory("latihan")}
+                className={`rounded-lg px-3 py-1.5 text-xs font-bold transition ${
+                  selectedCategory === "latihan"
+                    ? "bg-white text-indigo-700 shadow-sm"
+                    : "text-slate-600 hover:text-slate-900"
+                }`}
+              >
+                Latihan Soal (10 Paket)
+              </button>
+              <button
+                onClick={() => setSelectedCategory("tryout")}
+                className={`rounded-lg px-3 py-1.5 text-xs font-bold transition ${
+                  selectedCategory === "tryout"
+                    ? "bg-white text-purple-700 shadow-sm"
+                    : "text-slate-600 hover:text-slate-900"
+                }`}
+              >
+                Tryout CBT (3 Paket &bull; 45 Menit)
+              </button>
             </div>
           </div>
 
-          {activePaket && (
-            <div className="flex flex-wrap items-center gap-3">
+          {/* GRID PILIHAN PAKET */}
+          <div className="grid grid-cols-2 sm:grid-cols-5 md:grid-cols-5 gap-2.5">
+            {paketsInFilter.map((paket) => {
+              const isSelected = selectedPaketId === paket.id;
+              return (
+                <button
+                  key={paket.id}
+                  onClick={() => setSelectedPaketId(paket.id)}
+                  className={`p-3 rounded-2xl border text-left transition ${
+                    isSelected
+                      ? "border-purple-600 bg-purple-50/80 ring-2 ring-purple-600/20"
+                      : "border-slate-200 hover:border-slate-300 bg-white"
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-black uppercase text-purple-700 tracking-wider">
+                      {paket.category === "tryout" ? `Tryout #${paket.paketNumber}` : `Paket #${paket.paketNumber}`}
+                    </span>
+                    <span className="text-[10px] font-semibold text-slate-400">
+                      {paket.durasiMenit} Menit
+                    </span>
+                  </div>
+                  <div className="font-black text-xs text-slate-900 mt-1 line-clamp-1">{paket.title}</div>
+                  <div className="text-[11px] text-slate-500 mt-1 flex items-center justify-between">
+                    <span>{paket.soalList.length} Soal</span>
+                    <span className="text-emerald-600 font-bold">&gt;{paket.passingScore}</span>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+
+      {/* INFORMASI PAKET AKTIF & ACTION BAR */}
+      {activePaket ? (
+        <div className="space-y-4">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 rounded-3xl bg-slate-900 p-6 text-white shadow-lg">
+            <div className="space-y-1">
+              <div className="flex items-center gap-2">
+                <span className="rounded-full bg-indigo-500/30 px-3 py-0.5 text-xs font-bold text-indigo-300">
+                  {activePaket.jenjang}
+                </span>
+                <span className="rounded-full bg-emerald-500/30 px-3 py-0.5 text-xs font-bold text-emerald-300">
+                  {activePaket.mapelName}
+                </span>
+                <span className="rounded-full bg-amber-500/30 px-3 py-0.5 text-xs font-bold text-amber-300">
+                  {activePaket.levelKesukaran}
+                </span>
+              </div>
+              <h2 className="text-xl font-black">{activePaket.title}</h2>
+              <p className="text-xs text-slate-300 max-w-2xl">{activePaket.description}</p>
+            </div>
+
+            <div className="flex items-center gap-2.5 shrink-0">
               <button
                 onClick={handleOpenAddSoal}
-                className="flex items-center gap-2 px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-black text-xs rounded-xl shadow-md transition"
+                className="inline-flex items-center gap-2 rounded-xl bg-amber-400 hover:bg-amber-300 px-4 py-2.5 text-xs font-black text-slate-950 shadow transition"
               >
                 <Plus size={16} />
                 <span>+ Tambah Soal ke Paket Ini</span>
               </button>
             </div>
-          )}
-        </div>
-
-        {/* Info Ringkas Paket Aktif */}
-        {activePaket && (
-          <div className="flex flex-wrap items-center gap-4 pt-3 border-t border-slate-100 text-xs text-slate-600">
-            <span className="flex items-center gap-1 font-bold text-slate-800">
-              <BookOpen size={14} className="text-blue-600" />
-              <span>{activePaket.title}</span>
-            </span>
-            <span className="flex items-center gap-1">
-              <Clock size={14} className="text-slate-400" />
-              <span>Durasi: {activePaket.durasiMenit} Menit</span>
-            </span>
-            <span className="flex items-center gap-1 text-emerald-700 font-bold">
-              <Target size={14} />
-              <span>Passing Score: {activePaket.passingScore}%</span>
-            </span>
-            <span className="flex items-center gap-1 bg-blue-50 text-blue-700 px-2.5 py-0.5 rounded-full font-bold">
-              {activePaket.levelKesukaran}
-            </span>
-            <span className="text-slate-400 font-bold ml-auto">
-              Total: {activePaket.soalList.length} Butir Soal
-            </span>
           </div>
-        )}
-      </div>
 
-      {/* SEARCH SOAL */}
-      <div className="flex items-center gap-3">
-        <div className="relative flex-1">
-          <Search size={18} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
-          <input
-            type="text"
-            placeholder="Cari teks soal, stimulus bacaan, atau pembahasan..."
-            value={searchKeyword}
-            onChange={(e) => setSearchKeyword(e.target.value)}
-            className="w-full pl-10 pr-4 py-2.5 rounded-2xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
-          />
-        </div>
-      </div>
-
-      {/* DAFTAR SOAL DALAM PAKET */}
-      <div className="space-y-4">
-        {filteredSoalList.length === 0 ? (
-          <div className="text-center py-12 bg-white rounded-3xl border border-slate-200 p-8">
-            <HelpCircle size={40} className="text-slate-300 mx-auto mb-3" />
-            <h4 className="font-bold text-slate-700">Belum Ada Soal di Paket Ini</h4>
-            <p className="text-xs text-slate-400 mt-1 max-w-sm mx-auto">
-              Klik tombol &quot;+ Tambah Soal ke Paket Ini&quot; di atas untuk mulai memasukkan butir soal buatan sendiri.
-            </p>
+          {/* SEARCH & JUMLAH SOAL */}
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
+            <div className="text-sm font-bold text-slate-700">
+              Menampilkan {filteredSoalList.length} dari total {activePaket.soalList.length} butir soal
+            </div>
+            <div className="relative w-full sm:w-80">
+              <Search size={16} className="absolute left-3.5 top-3 text-slate-400" />
+              <input
+                type="text"
+                placeholder="Cari kata kunci soal / pembahasan..."
+                value={searchKeyword}
+                onChange={(e) => setSearchKeyword(e.target.value)}
+                className="w-full rounded-xl border border-slate-200 bg-white py-2 pl-9 pr-3 text-xs outline-none focus:border-indigo-500"
+              />
+            </div>
           </div>
-        ) : (
-          filteredSoalList.map((soal, idx) => (
-            <div
-              key={soal.id}
-              className="bg-white rounded-3xl border border-slate-200 p-6 shadow-sm hover:border-slate-300 transition-all space-y-4"
-            >
-              {/* Header Card Soal */}
-              <div className="flex items-center justify-between border-b pb-3">
-                <div className="flex items-center gap-2">
-                  <span className="w-8 h-8 rounded-xl bg-blue-50 text-blue-700 flex items-center justify-center font-black text-xs">
-                    {soal.nomor || idx + 1}
-                  </span>
-                  <span className="text-xs font-bold text-slate-500">
-                    ID: <code className="text-slate-700 font-mono">{soal.id}</code>
-                  </span>
-                  <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-700">
-                    {soal.tipe === "PG"
-                      ? "Pilihan Ganda"
-                      : soal.tipe === "MCMA"
-                      ? "Pilihan Ganda Kompleks"
-                      : "Benar / Salah"}
-                  </span>
-                </div>
 
-                {/* Action Buttons: Edit, Move, Delete */}
-                <div className="flex items-center gap-1.5">
-                  <button
-                    onClick={() => handleOpenMoveModal(soal.id)}
-                    className="flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-bold text-purple-700 bg-purple-50 hover:bg-purple-100 transition"
-                    title="Pindahkan butir soal ini ke paket lain"
-                  >
-                    <ArrowRightLeft size={13} />
-                    <span>Pindah Paket</span>
-                  </button>
-
-                  <button
-                    onClick={() => handleOpenEditSoal(soal)}
-                    className="flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-bold text-blue-700 bg-blue-50 hover:bg-blue-100 transition"
-                  >
-                    <Edit3 size={13} />
-                    <span>Edit</span>
-                  </button>
-
-                  <button
-                    onClick={() => handleDeleteSoal(soal.id)}
-                    className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-bold text-rose-600 hover:bg-rose-50 transition"
-                    title="Hapus soal ini"
-                  >
-                    <Trash2 size={13} />
-                  </button>
-                </div>
+          {/* DAFTAR BUTIR SOAL */}
+          <div className="space-y-3">
+            {filteredSoalList.length === 0 ? (
+              <div className="rounded-3xl border border-slate-200 bg-white p-12 text-center text-slate-400">
+                <FileText size={40} className="mx-auto text-slate-300 mb-3" />
+                <p className="font-bold text-slate-700">Belum ada soal pada paket ini</p>
+                <p className="text-xs text-slate-400 mt-1">
+                  Klik tombol &quot;+ Tambah Soal ke Paket Ini&quot; di atas untuk membuat soal baru.
+                </p>
               </div>
-
-              {/* Stimulus jika ada */}
-              {soal.stimulus && (
-                <div className="p-3.5 bg-slate-50 border-l-4 border-blue-500 rounded-r-xl text-xs text-slate-700 leading-relaxed">
-                  <strong className="block text-[11px] text-blue-800 uppercase tracking-wider mb-1">
-                    Stimulus / Konteks Bacaan:
-                  </strong>
-                  {soal.stimulus}
-                </div>
-              )}
-
-              {/* Pertanyaan */}
-              <div className="text-sm font-bold text-slate-900 leading-relaxed">
-                {soal.pertanyaan}
-              </div>
-
-              {/* Opsi & Kunci */}
-              {soal.opsi && (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
-                  {soal.opsi.map((op, opIdx) => {
-                    const letter = String.fromCharCode(65 + opIdx);
-                    const isKey =
-                      soal.tipe === "MCMA"
-                        ? Array.isArray(soal.kunci) && soal.kunci.includes(letter)
-                        : soal.kunci === letter;
-
-                    return (
-                      <div
-                        key={opIdx}
-                        className={`p-2.5 rounded-xl border flex items-center justify-between ${
-                          isKey
-                            ? "bg-emerald-50 border-emerald-400 font-bold text-emerald-900"
-                            : "bg-white border-slate-200 text-slate-700"
+            ) : (
+              filteredSoalList.map((soal) => (
+                <div
+                  key={soal.id}
+                  className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm hover:border-indigo-300 transition space-y-3"
+                >
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="flex items-center gap-2">
+                      <span className="flex h-7 w-7 items-center justify-center rounded-xl bg-indigo-50 font-black text-xs text-indigo-700 border border-indigo-200">
+                        {soal.nomor}
+                      </span>
+                      <span
+                        className={`rounded-full px-2.5 py-0.5 text-[11px] font-bold ${
+                          soal.tipe === "PG"
+                            ? "bg-blue-100 text-blue-800"
+                            : soal.tipe === "MCMA"
+                            ? "bg-purple-100 text-purple-800"
+                            : "bg-amber-100 text-amber-800"
                         }`}
                       >
-                        <div className="flex items-center gap-2">
-                          <span className="w-5 h-5 rounded bg-black/5 flex items-center justify-center font-bold text-[11px]">
-                            {letter}
+                        {soal.tipe === "PG"
+                          ? "Pilihan Ganda"
+                          : soal.tipe === "MCMA"
+                          ? "Pilihan Ganda Kompleks"
+                          : "Benar / Salah"}
+                      </span>
+                    </div>
+
+                    {/* AKSI EDIT, PINDAH, HAPUS */}
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        onClick={() => handleOpenEditSoal(soal)}
+                        className="inline-flex items-center gap-1 rounded-xl bg-slate-100 hover:bg-indigo-50 hover:text-indigo-700 px-3 py-1.5 text-xs font-bold text-slate-700 transition"
+                        title="Edit soal ini"
+                      >
+                        <Edit3 size={13} />
+                        <span>Edit</span>
+                      </button>
+                      <button
+                        onClick={() => handleOpenMoveModal(soal.id)}
+                        className="inline-flex items-center gap-1 rounded-xl bg-slate-100 hover:bg-amber-50 hover:text-amber-700 px-3 py-1.5 text-xs font-bold text-slate-700 transition"
+                        title="Pindahkan soal ini ke paket lain"
+                      >
+                        <ArrowRightLeft size={13} />
+                        <span>Pindah</span>
+                      </button>
+                      <button
+                        onClick={() => handleDeleteSoal(soal.id, soal.nomor)}
+                        className="inline-flex items-center gap-1 rounded-xl bg-slate-100 hover:bg-red-50 hover:text-red-700 px-3 py-1.5 text-xs font-bold text-slate-700 transition"
+                        title="Hapus soal ini"
+                      >
+                        <Trash2 size={13} />
+                        <span>Hapus</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* STIMULUS JIKA ADA */}
+                  {soal.stimulus && (
+                    <div className="rounded-2xl bg-slate-50 border border-slate-200 p-3.5 text-xs text-slate-700 leading-relaxed italic">
+                      <strong className="not-italic text-slate-900 block mb-1">Stimulus / Bacaan:</strong>
+                      {soal.stimulus}
+                    </div>
+                  )}
+
+                  {/* PERTANYAAN */}
+                  <div className="text-sm font-bold text-slate-900 leading-relaxed">
+                    {soal.pertanyaan}
+                  </div>
+
+                  {/* OPSI & KUNCI JAWABAN */}
+                  <div className="grid sm:grid-cols-2 gap-2 pt-1">
+                    {(soal.opsi || []).map((opsi, oIdx) => {
+                      const label = String.fromCharCode(65 + oIdx);
+                      const isCorrect = Array.isArray(soal.kunci)
+                        ? soal.kunci.includes(label)
+                        : soal.kunci === label || soal.kunci === opsi;
+
+                      return (
+                        <div
+                          key={oIdx}
+                          className={`flex items-center gap-2.5 p-2.5 rounded-xl border text-xs ${
+                            isCorrect
+                              ? "border-emerald-500 bg-emerald-50 text-emerald-950 font-bold"
+                              : "border-slate-200 bg-white text-slate-700"
+                          }`}
+                        >
+                          <span
+                            className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-lg text-[10px] font-black ${
+                              isCorrect ? "bg-emerald-600 text-white" : "bg-slate-100 text-slate-600"
+                            }`}
+                          >
+                            {soal.tipe === "BS" ? (oIdx === 0 ? "B" : "S") : label}
                           </span>
-                          <span>{op}</span>
+                          <span className="flex-1">{opsi}</span>
+                          {isCorrect && <CheckCircle2 size={14} className="text-emerald-600 shrink-0" />}
                         </div>
-                        {isKey && (
-                          <span className="text-[10px] font-black text-emerald-700 uppercase">
-                            Kunci ✓
-                          </span>
-                        )}
+                      );
+                    })}
+                  </div>
+
+                  {/* PEMBAHASAN */}
+                  <div className="rounded-2xl bg-blue-50/70 border border-blue-200 p-3 text-xs space-y-1">
+                    <span className="font-black text-blue-900 block">Pembahasan Lengkap:</span>
+                    <p className="text-blue-950 leading-relaxed">{soal.pembahasan}</p>
+                    {soal.konsepKunci && (
+                      <div className="pt-1 text-[11px] text-blue-700">
+                        <strong>Konsep Kunci:</strong> {soal.konsepKunci}
                       </div>
-                    );
-                  })}
+                    )}
+                  </div>
                 </div>
-              )}
+              ))
+            )}
+          </div>
+        </div>
+      ) : (
+        <div className="rounded-3xl border border-slate-200 bg-white p-12 text-center text-slate-400">
+          <BookOpen size={40} className="mx-auto text-slate-300 mb-3" />
+          <p className="font-bold text-slate-700">Pilih Jenjang, Mapel, dan Paket Soal di atas</p>
+        </div>
+      )}
 
-              {/* Box Pembahasan Lengkap */}
-              <div className="p-3.5 bg-blue-50/50 border border-blue-100 rounded-2xl text-xs space-y-1.5">
-                <span className="font-black text-blue-900 flex items-center gap-1.5">
-                  <Sparkles size={12} className="text-amber-500" />
-                  <span>Pembahasan Langkah demi Langkah:</span>
-                </span>
-                <p className="text-slate-700 leading-relaxed">{soal.pembahasan}</p>
-                {soal.konsepKunci && (
-                  <span className="inline-block bg-white px-2.5 py-1 rounded-lg border border-blue-200 text-blue-800 font-semibold text-[11px]">
-                    Konsep Kunci: {soal.konsepKunci}
-                  </span>
-                )}
-              </div>
-            </div>
-          ))
-        )}
-      </div>
-
-      {/* MODAL: TAMBAH / EDIT BUTIR SOAL */}
+      {/* MODAL EDIT / TAMBAH BUTIR SOAL */}
       {showSoalModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 overflow-y-auto">
-          <div className="bg-white rounded-3xl p-6 md:p-8 max-w-2xl w-full shadow-2xl my-8 max-h-[90vh] overflow-y-auto animate-in zoom-in-95 duration-200">
-            <div className="flex items-center justify-between border-b pb-4 mb-6">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-blue-100 text-blue-600 flex items-center justify-center">
-                  <Edit3 size={20} />
-                </div>
-                <div>
-                  <h3 className="text-lg font-black text-slate-900">
-                    {soalModalMode === "add" ? "Tambah Butir Soal Baru" : "Edit Butir Soal"}
-                  </h3>
-                  <p className="text-xs text-slate-500">
-                    Paket: {activePaket?.title} ({activePaket?.mapelName})
-                  </p>
-                </div>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm animate-in fade-in duration-200 overflow-y-auto">
+          <div className="w-full max-w-2xl rounded-3xl bg-white p-6 shadow-2xl border border-slate-100 space-y-5 my-8 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <div>
+                <h3 className="text-base font-black text-slate-900">
+                  {soalModalMode === "add" ? "+ Tambah Soal Baru" : "Edit Butir Soal"}
+                </h3>
+                <p className="text-xs text-slate-500">Paket: {activePaket?.title}</p>
               </div>
               <button
                 onClick={() => setShowSoalModal(false)}
-                className="p-2 text-slate-400 hover:text-slate-600 rounded-xl"
+                className="rounded-xl p-1 text-slate-400 hover:bg-slate-100"
               >
                 <X size={20} />
               </button>
             </div>
 
-            <form onSubmit={handleSaveSoal} className="space-y-5">
-              {/* Pilihan Tipe Soal */}
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1.5">
-                  Tipe Soal TKA:
-                </label>
-                <div className="grid grid-cols-3 gap-2">
-                  {(["PG", "MCMA", "BS"] as TipeSoalTKA[]).map((t) => (
-                    <button
-                      type="button"
-                      key={t}
-                      onClick={() => setFormTipe(t)}
-                      className={`py-2 px-3 rounded-xl text-xs font-bold border transition ${
-                        formTipe === t
-                          ? "bg-blue-600 text-white border-blue-600 shadow-sm"
-                          : "bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100"
-                      }`}
-                    >
-                      {t === "PG"
-                        ? "Pilihan Ganda"
-                        : t === "MCMA"
-                        ? "Pilihan Ganda Kompleks"
-                        : "Benar / Salah"}
-                    </button>
-                  ))}
-                </div>
+            {/* FORM TIPE SOAL */}
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1.5">Tipe Soal:</label>
+              <div className="grid grid-cols-3 gap-2">
+                {[
+                  { id: "PG", label: "Pilihan Ganda" },
+                  { id: "MCMA", label: "PG Kompleks (Banyak Kunci)" },
+                  { id: "BS", label: "Benar / Salah" },
+                ].map((t) => (
+                  <button
+                    key={t.id}
+                    type="button"
+                    onClick={() => setFormTipe(t.id as TipeSoalTKA)}
+                    className={`py-2 px-3 rounded-xl border text-xs font-bold transition ${
+                      formTipe === t.id
+                        ? "border-indigo-600 bg-indigo-50 text-indigo-700 ring-2 ring-indigo-600/20"
+                        : "border-slate-200 text-slate-600 hover:bg-slate-50"
+                    }`}
+                  >
+                    {t.label}
+                  </button>
+                ))}
               </div>
+            </div>
 
-              {/* Stimulus / Bacaan */}
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">
-                  Stimulus / Konteks Cerita (Opsional):
+            {/* STIMULUS (OPSIONAL) */}
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1">
+                Teks Stimulus / Wacana Bacaan (Opsional):
+              </label>
+              <textarea
+                rows={2}
+                value={formStimulus}
+                onChange={(e) => setFormStimulus(e.target.value)}
+                placeholder="Masukkan teks narasi, bacaan, atau tabel jika soal memerlukan stimulus..."
+                className="w-full rounded-xl border border-slate-200 p-3 text-xs outline-none focus:border-indigo-500"
+              />
+            </div>
+
+            {/* PERTANYAAN */}
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1">Pertanyaan / Soal (*):</label>
+              <textarea
+                rows={3}
+                value={formPertanyaan}
+                onChange={(e) => setFormPertanyaan(e.target.value)}
+                placeholder="Tuliskan butir pertanyaan secara jelas..."
+                className="w-full rounded-xl border border-slate-200 p-3 text-xs outline-none focus:border-indigo-500"
+              />
+            </div>
+
+            {/* OPSI & KUNCI JAWABAN */}
+            {formTipe === "PG" && (
+              <div className="space-y-2">
+                <label className="block text-xs font-bold text-slate-700">
+                  Opsi Jawaban & Pilih Kunci yang Benar:
                 </label>
-                <textarea
-                  rows={3}
-                  value={formStimulus}
-                  onChange={(e) => setFormStimulus(e.target.value)}
-                  placeholder="Masukkan teks cerita, studi kasus, data infografis, atau latar belakang soal..."
-                  className="w-full p-3 rounded-xl border border-slate-300 text-xs focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                />
-              </div>
-
-              {/* Teks Pertanyaan */}
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">
-                  Teks Pertanyaan <span className="text-rose-500">*</span>:
-                </label>
-                <textarea
-                  rows={2}
-                  required
-                  value={formPertanyaan}
-                  onChange={(e) => setFormPertanyaan(e.target.value)}
-                  placeholder="Ketik kalimat pertanyaan yang jelas dan lugas..."
-                  className="w-full p-3 rounded-xl border border-slate-300 text-xs focus:ring-2 focus:ring-blue-500 focus:outline-none font-medium"
-                />
-              </div>
-
-              {/* Pilihan Opsi untuk PG & MCMA */}
-              {(formTipe === "PG" || formTipe === "MCMA") && (
-                <div className="space-y-3 p-4 bg-slate-50 rounded-2xl border border-slate-200">
-                  <label className="block text-xs font-black text-slate-700 uppercase tracking-wider">
-                    Pilihan Opsi Jawaban (A, B, C, D):
-                  </label>
-
-                  <div className="space-y-2">
-                    <div className="flex items-center gap-2">
-                      <span className="w-6 h-6 rounded-lg bg-blue-100 text-blue-700 font-bold text-xs flex items-center justify-center shrink-0">
-                        A
-                      </span>
-                      <input
-                        type="text"
-                        required
-                        value={formOpsiA}
-                        onChange={(e) => setFormOpsiA(e.target.value)}
-                        placeholder="Teks Opsi A"
-                        className="flex-1 p-2 rounded-xl border border-slate-300 text-xs focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                      />
-                    </div>
-
-                    <div className="flex items-center gap-2">
-                      <span className="w-6 h-6 rounded-lg bg-blue-100 text-blue-700 font-bold text-xs flex items-center justify-center shrink-0">
-                        B
-                      </span>
-                      <input
-                        type="text"
-                        required
-                        value={formOpsiB}
-                        onChange={(e) => setFormOpsiB(e.target.value)}
-                        placeholder="Teks Opsi B"
-                        className="flex-1 p-2 rounded-xl border border-slate-300 text-xs focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                      />
-                    </div>
-
-                    <div className="flex items-center gap-2">
-                      <span className="w-6 h-6 rounded-lg bg-blue-100 text-blue-700 font-bold text-xs flex items-center justify-center shrink-0">
-                        C
-                      </span>
-                      <input
-                        type="text"
-                        required
-                        value={formOpsiC}
-                        onChange={(e) => setFormOpsiC(e.target.value)}
-                        placeholder="Teks Opsi C"
-                        className="flex-1 p-2 rounded-xl border border-slate-300 text-xs focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                      />
-                    </div>
-
-                    <div className="flex items-center gap-2">
-                      <span className="w-6 h-6 rounded-lg bg-blue-100 text-blue-700 font-bold text-xs flex items-center justify-center shrink-0">
-                        D
-                      </span>
-                      <input
-                        type="text"
-                        required
-                        value={formOpsiD}
-                        onChange={(e) => setFormOpsiD(e.target.value)}
-                        placeholder="Teks Opsi D"
-                        className="flex-1 p-2 rounded-xl border border-slate-300 text-xs focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                      />
-                    </div>
+                {["A", "B", "C", "D"].map((label, idx) => (
+                  <div key={label} className="flex items-center gap-2">
+                    <input
+                      type="radio"
+                      name="kunciPG"
+                      checked={formKunciPG === label}
+                      onChange={() => setFormKunciPG(label)}
+                      className="h-4 w-4 text-indigo-600"
+                    />
+                    <span className="font-black text-xs text-slate-700 w-4">{label}.</span>
+                    <input
+                      type="text"
+                      value={formOpsi[idx] || ""}
+                      onChange={(e) => {
+                        const copy = [...formOpsi];
+                        copy[idx] = e.target.value;
+                        setFormOpsi(copy);
+                      }}
+                      placeholder={`Pilihan jawaban ${label}`}
+                      className="flex-1 rounded-xl border border-slate-200 px-3 py-1.5 text-xs outline-none focus:border-indigo-500"
+                    />
                   </div>
+                ))}
+              </div>
+            )}
 
-                  {/* Kunci Jawaban PG */}
-                  {formTipe === "PG" && (
-                    <div className="pt-2">
-                      <label className="block text-xs font-bold text-slate-700 mb-1">
-                        Pilih Kunci Jawaban Benar (1 Opsi):
-                      </label>
-                      <div className="flex gap-3">
-                        {["A", "B", "C", "D"].map((k) => (
-                          <label key={k} className="flex items-center gap-1.5 text-xs font-bold cursor-pointer">
-                            <input
-                              type="radio"
-                              name="kunciPG"
-                              value={k}
-                              checked={formKunciPG === k}
-                              onChange={() => setFormKunciPG(k)}
-                              className="text-blue-600 focus:ring-blue-500"
-                            />
-                            <span>Opsi {k}</span>
-                          </label>
-                        ))}
-                      </div>
+            {formTipe === "MCMA" && (
+              <div className="space-y-2">
+                <label className="block text-xs font-bold text-slate-700">
+                  Opsi Jawaban & Centang Semua Kunci yang Benar:
+                </label>
+                {["A", "B", "C", "D", "E"].map((label, idx) => {
+                  const isChecked = formKunciMCMA.includes(label);
+                  return (
+                    <div key={label} className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        checked={isChecked}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setFormKunciMCMA([...formKunciMCMA, label]);
+                          } else {
+                            setFormKunciMCMA(formKunciMCMA.filter((k) => k !== label));
+                          }
+                        }}
+                        className="h-4 w-4 text-indigo-600 rounded"
+                      />
+                      <span className="font-black text-xs text-slate-700 w-4">{label}.</span>
+                      <input
+                        type="text"
+                        value={formOpsi[idx] || ""}
+                        onChange={(e) => {
+                          const copy = [...formOpsi];
+                          copy[idx] = e.target.value;
+                          setFormOpsi(copy);
+                        }}
+                        placeholder={`Pilihan jawaban ${label}`}
+                        className="flex-1 rounded-xl border border-slate-200 px-3 py-1.5 text-xs outline-none focus:border-indigo-500"
+                      />
                     </div>
-                  )}
+                  );
+                })}
+              </div>
+            )}
 
-                  {/* Kunci Jawaban MCMA (Multi-Select) */}
-                  {formTipe === "MCMA" && (
-                    <div className="pt-2">
-                      <label className="block text-xs font-bold text-slate-700 mb-1">
-                        Centang Kunci Jawaban Benar (Bisa lebih dari 1):
-                      </label>
-                      <div className="flex gap-4">
-                        {["A", "B", "C", "D"].map((k) => {
-                          const isChecked = formKunciMCMA.includes(k);
-                          return (
-                            <label key={k} className="flex items-center gap-1.5 text-xs font-bold cursor-pointer">
-                              <input
-                                type="checkbox"
-                                checked={isChecked}
-                                onChange={() => {
-                                  if (isChecked) {
-                                    setFormKunciMCMA(formKunciMCMA.filter((x) => x !== k));
-                                  } else {
-                                    setFormKunciMCMA([...formKunciMCMA, k]);
-                                  }
-                                }}
-                                className="text-emerald-600 rounded focus:ring-emerald-500"
-                              />
-                              <span>Opsi {k}</span>
-                            </label>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* Kunci Jawaban untuk Benar/Salah */}
-              {formTipe === "BS" && (
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1.5">
-                    Kunci Jawaban Pernyataan:
+            {formTipe === "BS" && (
+              <div className="space-y-2">
+                <label className="block text-xs font-bold text-slate-700">Kunci Benar / Salah:</label>
+                <div className="flex gap-4">
+                  <label className="flex items-center gap-2 text-xs font-bold text-emerald-700">
+                    <input
+                      type="radio"
+                      name="kunciBS"
+                      value="BENAR"
+                      checked={formKunciBS === "BENAR"}
+                      onChange={() => setFormKunciBS("BENAR")}
+                    />
+                    BENAR
                   </label>
-                  <div className="grid grid-cols-2 gap-3">
-                    {["BENAR", "SALAH"].map((val) => (
-                      <button
-                        type="button"
-                        key={val}
-                        onClick={() => setFormKunciBS(val)}
-                        className={`py-2.5 rounded-xl font-black text-xs border transition ${
-                          formKunciBS === val
-                            ? val === "BENAR"
-                              ? "bg-emerald-600 text-white border-emerald-600 shadow-sm"
-                              : "bg-rose-600 text-white border-rose-600 shadow-sm"
-                            : "bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100"
-                        }`}
-                      >
-                        {val}
-                      </button>
-                    ))}
-                  </div>
+                  <label className="flex items-center gap-2 text-xs font-bold text-red-700">
+                    <input
+                      type="radio"
+                      name="kunciBS"
+                      value="SALAH"
+                      checked={formKunciBS === "SALAH"}
+                      onChange={() => setFormKunciBS("SALAH")}
+                    />
+                    SALAH
+                  </label>
                 </div>
-              )}
-
-              {/* Teks Pembahasan Lengkap */}
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">
-                  Pembahasan Lengkap Langkah demi Langkah:
-                </label>
-                <textarea
-                  rows={3}
-                  required
-                  value={formPembahasan}
-                  onChange={(e) => setFormPembahasan(e.target.value)}
-                  placeholder="Jelaskan alasan mengapa opsi tersebut benar, rumus yang digunakan, atau analisis kalimat..."
-                  className="w-full p-3 rounded-xl border border-slate-300 text-xs focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                />
               </div>
+            )}
 
-              {/* Konsep Kunci */}
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">
-                  Rangkuman Konsep Kunci:
-                </label>
-                <input
-                  type="text"
-                  value={formKonsepKunci}
-                  onChange={(e) => setFormKonsepKunci(e.target.value)}
-                  placeholder="Misal: FPB & KPK, Ide Pokok Paragraf, Teorema Pythagoras, dll."
-                  className="w-full p-2.5 rounded-xl border border-slate-300 text-xs focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                />
-              </div>
+            {/* PEMBAHASAN */}
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1">
+                Pembahasan Terperinci (*):
+              </label>
+              <textarea
+                rows={3}
+                value={formPembahasan}
+                onChange={(e) => setFormPembahasan(e.target.value)}
+                placeholder="Tuliskan langkah-langkah logika pengerjaan dan alasan jawaban benar..."
+                className="w-full rounded-xl border border-slate-200 p-3 text-xs outline-none focus:border-indigo-500"
+              />
+            </div>
 
-              {/* Tombol Simpan */}
-              <div className="flex items-center justify-end gap-3 pt-4 border-t">
-                <button
-                  type="button"
-                  onClick={() => setShowSoalModal(false)}
-                  className="px-5 py-2.5 rounded-xl border border-slate-200 text-slate-700 font-bold text-xs hover:bg-slate-50 transition"
-                >
-                  Batal
-                </button>
-                <button
-                  type="submit"
-                  className="px-6 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-black text-xs shadow-md transition"
-                >
-                  {soalModalMode === "add" ? "Simpan Butir Soal" : "Perbarui Soal"}
-                </button>
-              </div>
-            </form>
+            {/* KONSEP KUNCI */}
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1">
+                Konsep Kunci / Teori Singkat (Opsional):
+              </label>
+              <input
+                type="text"
+                value={formKonsepKunci}
+                onChange={(e) => setFormKonsepKunci(e.target.value)}
+                placeholder="Misal: Operasi hitung campuran bilangan bulat"
+                className="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs outline-none focus:border-indigo-500"
+              />
+            </div>
+
+            <div className="flex justify-end gap-2.5 pt-3 border-t border-slate-100">
+              <button
+                type="button"
+                onClick={() => setShowSoalModal(false)}
+                className="px-4 py-2 rounded-xl border border-slate-200 text-xs font-bold text-slate-600 hover:bg-slate-50"
+              >
+                Batal
+              </button>
+              <button
+                type="button"
+                onClick={handleSaveSoal}
+                className="px-5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-xs font-bold text-white shadow-md shadow-indigo-600/20"
+              >
+                Simpan Soal
+              </button>
+            </div>
           </div>
         </div>
       )}
 
-      {/* MODAL: PINDAH SOAL KE PAKET LAIN */}
+      {/* MODAL PINDAH SOAL KE PAKET LAIN */}
       {showMoveModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-          <div className="bg-white rounded-3xl p-6 md:p-8 max-w-md w-full shadow-2xl animate-in zoom-in-95 duration-200 space-y-5">
-            <div className="flex items-center justify-between border-b pb-3">
-              <div className="flex items-center gap-2">
-                <ArrowRightLeft className="text-purple-600" size={20} />
-                <h3 className="font-black text-slate-900 text-base">Pindahkan Soal ke Paket Lain</h3>
-              </div>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="w-full max-w-md rounded-3xl bg-white p-6 shadow-2xl border border-slate-100 space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <h3 className="text-sm font-black text-slate-900">Pindahkan Soal ke Paket Lain</h3>
               <button
                 onClick={() => setShowMoveModal(false)}
-                className="p-1.5 text-slate-400 hover:text-slate-600 rounded-lg"
+                className="rounded-xl p-1 text-slate-400 hover:bg-slate-100"
               >
                 <X size={18} />
               </button>
             </div>
 
-            <p className="text-xs text-slate-600 leading-relaxed">
-              Pilih paket tujuan untuk butir soal ini. Soal akan otomatis dipindahkan dan nomor urut di kedua paket akan dirapikan kembali.
+            <p className="text-xs text-slate-600">
+              Pilih paket tujuan untuk memindahkan butir soal ini. Nomor urut soal akan otomatis disesuaikan di paket tujuan.
             </p>
 
             <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1.5">
-                Pilih Paket Tujuan:
-              </label>
+              <label className="block text-xs font-bold text-slate-700 mb-1.5">Pilih Paket Tujuan:</label>
               <select
                 value={targetPaketId}
                 onChange={(e) => setTargetPaketId(e.target.value)}
-                className="w-full p-3 rounded-xl border border-slate-300 text-xs font-bold bg-slate-50 focus:ring-2 focus:ring-purple-500 focus:outline-none"
+                className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-xs font-semibold outline-none focus:border-indigo-500"
               >
                 {allPakets
-                  .filter((p) => p.id !== selectedPaketId)
+                  .filter((p) => p.id !== activePaket?.id)
                   .map((p) => (
                     <option key={p.id} value={p.id}>
-                      [{p.jenjang} - {p.mapelName}] Paket {p.paketNumber}: {p.title}
+                      [{p.jenjang}] {p.mapelName} &bull; {p.title}
                     </option>
                   ))}
               </select>
             </div>
 
-            <div className="flex items-center justify-end gap-3 pt-3 border-t">
+            <div className="flex justify-end gap-2.5 pt-3">
               <button
                 type="button"
                 onClick={() => setShowMoveModal(false)}
-                className="px-4 py-2.5 rounded-xl border border-slate-200 text-slate-700 font-bold text-xs hover:bg-slate-50"
+                className="px-4 py-2 rounded-xl border border-slate-200 text-xs font-bold text-slate-600 hover:bg-slate-50"
               >
                 Batal
               </button>
               <button
                 type="button"
                 onClick={handleExecuteMove}
-                className="px-5 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-black text-xs shadow-md transition"
+                className="px-5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-xs font-bold text-white shadow"
               >
-                Konfirmasi Pindahkan
+                Pindahkan Sekarang
               </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* MODAL: TAMBAH PAKET SOAL BARU */}
+      {/* MODAL TAMBAH PAKET BARU */}
       {showAddPaketModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 overflow-y-auto">
-          <div className="bg-white rounded-3xl p-6 md:p-8 max-w-lg w-full shadow-2xl my-8 animate-in zoom-in-95 duration-200">
-            <div className="flex items-center justify-between border-b pb-4 mb-5">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-amber-100 text-amber-700 flex items-center justify-center">
-                  <Plus size={20} />
-                </div>
-                <div>
-                  <h3 className="text-lg font-black text-slate-900">Buat Paket Soal Baru</h3>
-                  <p className="text-xs text-slate-500">
-                    Menambahkan paket baru ke mata pelajaran {tkaMemberSubjects.find((s) => s.id === selectedSubjectId)?.name}
-                  </p>
-                </div>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="w-full max-w-lg rounded-3xl bg-white p-6 shadow-2xl border border-slate-100 space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <div>
+                <h3 className="text-base font-black text-slate-900">+ Tambah Paket Baru</h3>
+                <p className="text-xs text-slate-500">
+                  Untuk {activeSubjectMeta?.name} ({selectedJenjang})
+                </p>
               </div>
               <button
                 onClick={() => setShowAddPaketModal(false)}
-                className="p-2 text-slate-400 hover:text-slate-600 rounded-xl"
+                className="rounded-xl p-1 text-slate-400 hover:bg-slate-100"
               >
                 <X size={20} />
               </button>
             </div>
 
-            <form onSubmit={handleCreateNewPaket} className="space-y-4">
+            <div className="space-y-3">
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">
-                  Nama / Judul Paket <span className="text-rose-500">*</span>:
-                </label>
+                <label className="block text-xs font-bold text-slate-700 mb-1">Kategori Paket:</label>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setNewPaketCategory("latihan");
+                      setNewPaketDuration(30);
+                    }}
+                    className={`py-2 px-3 rounded-xl border text-xs font-bold transition ${
+                      newPaketCategory === "latihan"
+                        ? "border-indigo-600 bg-indigo-50 text-indigo-700"
+                        : "border-slate-200 text-slate-600"
+                    }`}
+                  >
+                    Latihan Soal
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setNewPaketCategory("tryout");
+                      setNewPaketDuration(45);
+                    }}
+                    className={`py-2 px-3 rounded-xl border text-xs font-bold transition ${
+                      newPaketCategory === "tryout"
+                        ? "border-purple-600 bg-purple-50 text-purple-700"
+                        : "border-slate-200 text-slate-600"
+                    }`}
+                  >
+                    Tryout CBT (45 Menit)
+                  </button>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">Judul Paket (*):</label>
                 <input
                   type="text"
-                  required
                   value={newPaketTitle}
                   onChange={(e) => setNewPaketTitle(e.target.value)}
-                  placeholder="Misal: Paket 11: Pengayaan Numerasi Terapan"
-                  className="w-full p-3 rounded-xl border border-slate-300 text-xs focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                  placeholder="Contoh: Paket 11: Pengayaan Eksponen HOTS"
+                  className="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs outline-none focus:border-indigo-500"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">
-                  Deskripsi Paket:
-                </label>
+                <label className="block text-xs font-bold text-slate-700 mb-1">Deskripsi Paket:</label>
                 <textarea
                   rows={2}
                   value={newPaketDesc}
                   onChange={(e) => setNewPaketDesc(e.target.value)}
-                  placeholder="Deskripsi singkat topik materi atau tujuan paket..."
-                  className="w-full p-3 rounded-xl border border-slate-300 text-xs focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                  placeholder="Deskripsikan fokus materi dan tujuan paket latihan ini..."
+                  className="w-full rounded-xl border border-slate-200 p-3 text-xs outline-none focus:border-indigo-500"
                 />
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">
-                    Jenjang Pendidikan:
-                  </label>
-                  <select
-                    value={newPaketJenjang}
-                    onChange={(e) => setNewPaketJenjang(e.target.value as any)}
-                    className="w-full p-2.5 rounded-xl border border-slate-300 text-xs font-bold bg-slate-50 focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                  >
-                    <option value="SD/MI">SD / MI</option>
-                    <option value="SMP/MTs">SMP / MTs</option>
-                    <option value="SMA">SMA</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">
-                    Tingkat Kesukaran:
-                  </label>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">Tingkat Kesukaran:</label>
                   <select
                     value={newPaketLevel}
-                    onChange={(e) => setNewPaketLevel(e.target.value as any)}
-                    className="w-full p-2.5 rounded-xl border border-slate-300 text-xs font-bold bg-slate-50 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                    onChange={(e: any) => setNewPaketLevel(e.target.value)}
+                    className="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs font-semibold outline-none"
                   >
-                    <option value="Level 1: Dasar & Pemahaman">Level 1: Dasar</option>
-                    <option value="Level 2: Aplikasi & Terapan">Level 2: Aplikasi</option>
-                    <option value="Level 3: Analisis & HOTS Mahir">Level 3: HOTS Mahir</option>
+                    <option value="Level 1: Dasar & Pemahaman">Level 1: Dasar & Pemahaman</option>
+                    <option value="Level 2: Aplikasi & Terapan">Level 2: Aplikasi & Terapan</option>
+                    <option value="Level 3: Analisis & HOTS Mahir">Level 3: Analisis & HOTS Mahir</option>
                   </select>
                 </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">
-                    Durasi (Menit):
-                  </label>
-                  <input
-                    type="number"
-                    min={5}
-                    max={120}
-                    value={newPaketDurasi}
-                    onChange={(e) => setNewPaketDurasi(Number(e.target.value))}
-                    className="w-full p-2.5 rounded-xl border border-slate-300 text-xs focus:ring-2 focus:ring-blue-500 focus:outline-none font-bold"
-                  />
-                </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">
-                    Passing Score (Syarat Nilai):
-                  </label>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">Durasi Pengerjaan (Menit):</label>
                   <input
                     type="number"
-                    min={10}
-                    max={100}
-                    value={newPaketPassing}
-                    onChange={(e) => setNewPaketPassing(Number(e.target.value))}
-                    className="w-full p-2.5 rounded-xl border border-slate-300 text-xs focus:ring-2 focus:ring-blue-500 focus:outline-none font-bold text-emerald-700"
+                    value={newPaketDuration}
+                    onChange={(e) => setNewPaketDuration(parseInt(e.target.value, 10) || 30)}
+                    className="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs font-semibold outline-none"
                   />
                 </div>
               </div>
+            </div>
 
-              <div className="flex items-center justify-end gap-3 pt-4 border-t">
-                <button
-                  type="button"
-                  onClick={() => setShowAddPaketModal(false)}
-                  className="px-4 py-2.5 rounded-xl border border-slate-200 text-slate-700 font-bold text-xs hover:bg-slate-50"
-                >
-                  Batal
-                </button>
-                <button
-                  type="submit"
-                  className="px-5 py-2.5 rounded-xl bg-amber-400 hover:bg-amber-500 text-slate-950 font-black text-xs shadow-md transition"
-                >
-                  Buat Paket Sekarang
-                </button>
-              </div>
-            </form>
+            <div className="flex justify-end gap-2.5 pt-3 border-t border-slate-100">
+              <button
+                type="button"
+                onClick={() => setShowAddPaketModal(false)}
+                className="px-4 py-2 rounded-xl border border-slate-200 text-xs font-bold text-slate-600 hover:bg-slate-50"
+              >
+                Batal
+              </button>
+              <button
+                type="button"
+                onClick={handleCreateNewPaket}
+                className="px-5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-xs font-bold text-white shadow"
+              >
+                Buat Paket Baru
+              </button>
+            </div>
           </div>
         </div>
       )}
